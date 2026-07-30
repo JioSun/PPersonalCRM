@@ -1,11 +1,14 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 from pydantic import (
-    PostgresDsn, computed_field
+    PostgresDsn, computed_field, EmailStr
 )
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file="../.env",
+        env_file=BASE_DIR / ".env",
         env_ignore_empty=True,
         extra="ignore"
     )
@@ -16,6 +19,13 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
+
+    #BACKEND
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
+    SUPER_ADMIN: EmailStr
 
     @computed_field
     @property
@@ -31,3 +41,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
