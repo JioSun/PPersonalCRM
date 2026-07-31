@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from pydantic import EmailStr
-from app.models.utils import generate_ulid, get_datetime_utc
+from backend.app.models.utils import generate_ulid, get_datetime_utc
 from sqlalchemy import DateTime
 
 if TYPE_CHECKING:
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 #base
 class UserBase(SQLModel):
     username: str = Field(max_length=255)
-    email: EmailStr = Field(unique=True, index=True, max_length=255,  schema_extra={"example": "user.userson@example.com"})
+    email: EmailStr = Field(unique=True, index=True, max_length=255,  schema_extra={"example": "userson@example.com"})
     is_active: bool = True
 
 

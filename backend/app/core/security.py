@@ -5,7 +5,7 @@ from pydantic import EmailStr
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
 from backend.app.models.user import User
-from config import settings
+from backend.app.core.config import settings
 
 import jwt
 
@@ -40,10 +40,10 @@ def create_refresh_token(username: str) -> str:
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
-async def authenticate_user(session: Session, email: EmailStr, password: str) -> User | None:
+async def authenticate_user(session: Session, email: str, password: str) -> User | None:
     stmt = select(User).where(User.email == email)
-    user = session.execute(stmt).scalar_one_or_none()
-
+    result = await session.execute(stmt)
+    user = result.scalar_one_or_none()
 
     if not user:
         verify_password(password, _DUMMY_HASH)

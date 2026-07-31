@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field, Relationship
 
-from app.models.constants import DealStatus
-from app.models.invoice import InvoiceCreate
-from app.models.utils import get_datetime_utc, generate_ulid
+from backend.app.models.constants import DealStatus
+from backend.app.models.invoice import InvoiceCreate
+from backend.app.models.utils import get_datetime_utc, generate_ulid
 
 if TYPE_CHECKING:
     from backend.app.models.client import Client
@@ -32,8 +32,8 @@ class Deal(DealBase, table=True):
     client_id: str = Field(foreign_key="client.id", index=True)
     user_id: str = Field(foreign_key="user.id", index=True)
 
-    client: "Client" = Relationship(back_populates="deal")
-    user: "User" = Relationship(back_populates="deal")
+    client: "Client" = Relationship(back_populates="deals")
+    user: "User" = Relationship(back_populates="deals")
     invoices: list["Invoice"] = Relationship(back_populates="deal")
 
 # create

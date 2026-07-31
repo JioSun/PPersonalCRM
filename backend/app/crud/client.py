@@ -22,9 +22,16 @@ async def create_client(
 
 async def get_clients_by_user_id(session: Session, user_id: str) -> list[Client]:
     stmt = select(Client).where(Client.user_id == user_id)
-    clients = await session.execute(stmt).scalars().all()
+    result = await session.execute(stmt)
+    clients = result.scalar_one_or_none()
 
     return clients
 
+async def get_client_by_username(session: Session, client_id: str) -> Client:
+    stmt = select(Client).where(Client.id == client_id)
+    result = await session.execute(stmt)
+    client = result.scalar_one_or_none()
+
+    return client
 
 
