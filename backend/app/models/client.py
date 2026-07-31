@@ -1,8 +1,8 @@
 from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship, Index, DateTime
 
-from app.models.invoice import Invoice
-from app.models.utils import generate_ulid, get_datetime_utc
+from backend.app.models.invoice import Invoice
+from backend.app.models.utils import generate_ulid, get_datetime_utc
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -32,12 +32,12 @@ class Client(ClientBase, table=True):
     deals: list["Deal"] = Relationship(back_populates="client")
 
     __table_args__ = (
-        Index("full_name_index", "first_name", "last_name",unique=True),
+        Index("full_name_index", "first_name", "last_name"),
     )
 
 #create
 class ClientCreate(ClientBase):
-    notes: str = Field(max_length=500)
+    notes: str | None = Field(max_length=500, default=None)
 
 
 #update

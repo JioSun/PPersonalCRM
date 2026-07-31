@@ -8,9 +8,9 @@ if sys.platform == "win32":
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from core.config import settings
+from backend.app.core.config import settings
 from alembic import context
-from app.models import SQLModel, User, Client, Deal, Invoice
+from backend.app.models import SQLModel, User, Client, Deal, Invoice
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

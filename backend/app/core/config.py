@@ -4,7 +4,8 @@ from pydantic import (
     PostgresDsn, computed_field, EmailStr
 )
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+print(BASE_DIR)
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -30,14 +31,14 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
-        return PostgresDsn.build(
+        return str(PostgresDsn.build(
             scheme="postgresql+asyncpg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
-        )
+        ))
 
 
 settings = Settings()

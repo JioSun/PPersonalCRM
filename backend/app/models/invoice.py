@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from sqlmodel import SQLModel, Field, Relationship, DateTime
 from pydantic import EmailStr
-from app.models.utils import generate_ulid, get_datetime_utc
+from backend.app.models.utils import generate_ulid, get_datetime_utc
 
 if TYPE_CHECKING:
     from backend.app.models.deal import Deal
