@@ -6,3 +6,4 @@ class DealStatus(str, Enum):
     ON_REVIEW = "on_review"    # отдано клиенту на проверку/правки
     COMPLETED = "completed"    # принято клиентом, работа сдана
     CANCELLED = "cancelled"
+

@@ -1,51 +1,99 @@
-import jwt
-from fastapi import APIRouter, status, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import EmailStr
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 import logging
+from fastapi import APIRouter, status, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
 from backend.app.api.dependencies import get_current_active_user
 from backend.app.core.db import get_db
-from backend.app.core.security import get_password_hash, authenticate_user, create_access_token, create_refresh_token, \
-    decode_token
-from backend.app.models.client import ClientRead, ClientCreate, Client
-from backend.app.models.secure import Token
-from backend.app.models.user import UserRead, UserCreate, User
-from backend.app.crud.client import create_client
-router = APIRouter(prefix="/client", tags=["clients"])
+from backend.app.models.client import ClientRead, ClientCreate, ClientUpdate
+from backend.app.models.user import User
 
+from backend.app.crud.client import (
+    create_client,
+    get_clients_by_user_id,
+    existing_client_check,
+    get_clients_by_query,
+    get_client_by_id,
+    update_client_by_id
+)
+
+router = APIRouter(prefix="/clients", tags=["clients"])
 logger = logging.getLogger(__name__)
 
-@router.post("/create", status_code=status.HTTP_201_CREATED, response_model=ClientRead)
-async def create(
+
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=ClientRead)
+async def create_new_client(
         client_in: ClientCreate,
         current_user: User = Depends(get_current_active_user),
-        session: Session = Depends(get_db)
+        session: Session = Depends(get_db)  # <-- Добавили сессию
 ) -> ClientRead:
     logger.debug("Проверка на существование клиента")
-    stmt = select(Client).where(Client.username == client_in.username)
-    result = await session.execute(stmt)
-    existing_client = result.scalar_one_or_none()
+    client_existing = await existing_client_check(
+        username=client_in.username,
+        user_id=current_user.id,
+        session=session
+    )
 
-    if existing_client is not None:
+    if client_existing:
         logger.error('Клиент существует')
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Client already exists")
 
     logger.info('Создание клиента')
     client = await create_client(
-        session=session,
         username=client_in.username,
         first_name=client_in.first_name,
         last_name=client_in.last_name,
         user_id=current_user.id,
-        notes=client_in.notes
+        notes=client_in.notes,
+        session=session
     )
-    logger.info('Сохранение клиента')
-    await session.commit()
-    await session.refresh(client)
-
     return client
 
 
+@router.get("", response_model=list[ClientRead], status_code=status.HTTP_200_OK)
+async def get_clients(
+        q: str = Query(default="", description="Поиск по username"),
+        offset: int = Query(default=0, ge=0),
+        limit: int = Query(default=20, le=100),
+        current_user: User = Depends(get_current_active_user),
+        session: Session = Depends(get_db)
+) -> list[ClientRead]:
 
+    clients = await get_clients_by_query(
+        user_id=current_user.id,
+        q=q,
+        limit=limit,
+        offset=offset,
+        session=session
+    )
+    return clients
+
+
+# ИСПРАВЛЕНО: Добавлен /{client_id} в путь
+@router.get("/{client_id}", response_model=ClientRead, status_code=status.HTTP_200_OK)
+async def get_client(
+        client_id: str,
+        session: Session = Depends(get_db),
+        current_user: User = Depends(get_current_active_user)
+) -> ClientRead:
+    client = await get_client_by_id(client_id=client_id, session=session)
+    if not client or client.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+    return client
+
+
+# ИСПРАВЛЕНО: Добавлен /{client_id} в путь
+@router.patch("/{client_id}", response_model=ClientRead, status_code=status.HTTP_200_OK)
+async def update_client(
+        client_id: str,
+        client_in: ClientUpdate,
+        session: Session = Depends(get_db),
+        current_user: User = Depends(get_current_active_user)
+):
+    updated_client = await update_client_by_id(
+        client_id=client_id,
+        client_in=client_in,
+        session=session
+    )
+    if not updated_client or updated_client.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+    return updated_client
