@@ -2,7 +2,7 @@ import logging
 
 from fastapi import FastAPI
 
-from backend.app.api.routes import users, clients
+from backend.app.api.routes import users, clients, deals, invoices
 from backend.app.logger import setup_logging
 
 setup_logging()
@@ -21,6 +21,18 @@ app.include_router(
     clients.router,
 )
 logger.debug("Clients router init")
+
+app.include_router(
+    deals.router,
+)
+
+logger.debug("Deals router init")
+
+app.include_router(
+    invoices.router,
+)
+
+logger.debug("Invoice router init")
 
 @app.get("/")
 async def greetings():

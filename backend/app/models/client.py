@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship, Index, DateTime
 
 from backend.app.models.invoice import Invoice
@@ -33,6 +35,7 @@ class Client(ClientBase, table=True):
 
     __table_args__ = (
         Index("full_name_index", "first_name", "last_name"),
+        UniqueConstraint("user_id", "username", name="unique_username_for_user"),
     )
 
 #create
@@ -48,4 +51,5 @@ class ClientUpdate(ClientBase):
 #read
 class ClientRead(ClientBase):
     id: str
+    notes: str | None = Field(max_length=500)
     created_at: datetime | None = None

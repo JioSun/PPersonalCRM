@@ -16,11 +16,10 @@ if TYPE_CHECKING:
 # base — общие поля для Create/Update/Read
 class DealBase(SQLModel):
     name: str = Field(max_length=255, index=True)
-    amount: decimal.Decimal = Field(max_digits=8, decimal_places=2)
+    amount: decimal.Decimal = Field(max_digits=8, decimal_places=2, default=decimal.Decimal(0))
     status: DealStatus = DealStatus.NEW
     deadline: datetime | None = None
 
-# table — то, что реально в БД
 class Deal(DealBase, table=True):
     __tablename__ = "deal"
 
