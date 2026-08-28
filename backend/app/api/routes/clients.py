@@ -101,3 +101,4 @@ async def update_client(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
     await conn.delete(f'dashboard:{current_user.id}')
     return updated_client
+
