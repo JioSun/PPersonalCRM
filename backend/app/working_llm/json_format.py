@@ -1,8 +1,11 @@
-from anthropic import AsyncAnthropic
+import asyncio
+from typing import final
+import json
+from google import genai
 from backend.app.working_llm.llm_classes import ExtractedDealInfo
 from backend.app.core.config import settings
 
-client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 SYSTEM_PROMPT = """ИНСТРУКЦИЯ ДЛЯ ОБРАБОТКИ ЗАМЕТОК
 
@@ -14,24 +17,26 @@ SYSTEM_PROMPT = """ИНСТРУКЦИЯ ДЛЯ ОБРАБОТКИ ЗАМЕТОК
 
 2) amount — если в тексте есть цена сделки, сохрани число в amount.
 
-3) currency — если валюта явно указана в тексте (рубли, доллары, евро), определи её по ключевому слову и сохрани соответствующий тип Currency. Если валюта явно не указана — null, не подставляй значение по умолчанию.
+3) deadline — если в тексте есть дата дедлайна сделки, сохрани её в deadline. Если даты нет — null.
 
-4) deadline — если в тексте есть дата дедлайна сделки, сохрани её в deadline. Если даты нет — null.
+Никогда не выдумывай значения полей, которых нет в тексте — используй null. 
 
-Никогда не выдумывай значения полей, которых нет в тексте — используй null."""
+<note>{note_text}</note>"""
 
 async def note_formatter(note_text):
-    response = await client.messages.parse(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        system=SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": f"<note>{note_text}</note>",
-            }
-        ],
-        output_format=ExtractedDealInfo
+    final_prompt = SYSTEM_PROMPT.format(note_text=note_text)
+    interaction = await client.aio.interactions.create(
+        model="gemini-3.6-flash",
+        input=final_prompt,
+        response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": ExtractedDealInfo.model_json_schema()
+            },
     )
+    print(final_prompt)
 
-    return response.parsed_output
+    return ExtractedDealInfo.model_validate_json(interaction.output_text)
+
+if __name__ == "__main__":
+    print(asyncio.run(note_formatter("договорились на дизайн лендинга, 800 евро, дедлайн 15 августа")))
