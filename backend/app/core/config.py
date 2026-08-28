@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int
     SUPER_ADMIN: EmailStr
 
+    #REDIS
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_DB: str
+
+    #SMTP
+    EMAIL: EmailStr
+    PASSWORD: str
+    EMAIL_HOST: str
+    EMAIL_PORT: int
+
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:

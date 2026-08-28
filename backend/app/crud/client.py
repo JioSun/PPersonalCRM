@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 
 from backend.app.models.client import Client, ClientUpdate
-
+from backend.app.models.deal import Deal
+from backend.app.core.db import get_db
+import asyncio
 
 async def create_client(
         user_id: str,
@@ -81,3 +83,26 @@ async def update_client_by_id(
     await session.refresh(db_client)
 
     return db_client
+
+async def get_clients_sum(
+        user_id: str,
+        session: Session
+):
+    stmt = (select(Client.id, Client.username, func.sum(Deal.amount))
+            .where(Client.user_id == user_id).join(Deal, Deal.client_id == Client.id)
+            .group_by(Client.id))
+
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result.all()]
+
+async def main():
+    async for session in get_db():
+        client = await get_clients_sum(
+            user_id='01KYT2FHZ4R84JYQ2F36372XF8',
+            session=session
+        )
+        print(client[0])
+        break
+
+if '__main__' == __name__:
+    asyncio.run(main())

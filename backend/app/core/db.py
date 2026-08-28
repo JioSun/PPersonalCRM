@@ -17,6 +17,7 @@ def create_session_pool(engine):
 
 engine = create_engine(settings.SQLALCHEMY_DATABASE_URI)
 
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     session_pool = create_session_pool(engine)
     async with session_pool() as session:

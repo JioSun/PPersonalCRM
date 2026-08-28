@@ -2,7 +2,7 @@ import decimal
 from datetime import datetime
 from typing import TYPE_CHECKING
 from sqlalchemy import DateTime
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column
 
 from backend.app.models.constants import DealStatus
 from backend.app.models.invoice import InvoiceCreate
@@ -18,7 +18,10 @@ class DealBase(SQLModel):
     name: str = Field(max_length=255, index=True)
     amount: decimal.Decimal = Field(max_digits=8, decimal_places=2, default=decimal.Decimal(0))
     status: DealStatus = DealStatus.NEW
-    deadline: datetime | None = None
+    deadline: datetime | None = Field(
+    default=None,
+    sa_column=Column(DateTime(timezone=True))
+)
 
 class Deal(DealBase, table=True):
     __tablename__ = "deal"
