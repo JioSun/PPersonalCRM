@@ -5,6 +5,7 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.18.5",
+    "anthropic>=1.2.0",
     "asyncpg>=0.31.0",
     "celery>=5.6.3",
     "celery-types>=0.26.0",
