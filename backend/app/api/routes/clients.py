@@ -15,6 +15,7 @@ from backend.app.crud.client import (
     get_client_by_id,
     update_client_by_id
 )
+from backend.app.working_llm.llm_classes import ExtractedDealInfo
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 logger = logging.getLogger(__name__)
@@ -102,3 +103,7 @@ async def update_client(
     await conn.delete(f'dashboard:{current_user.id}')
     return updated_client
 
+@router.post('/{client_id}/notes', response_model=ExtractedDealInfo, status_code=status.HTTP_201_CREATED)
+async def create_new_client_note(
+    client_id: str,
+):

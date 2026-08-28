@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     EMAIL_HOST: str
     EMAIL_PORT: int
 
-    #ANTHROPIC
-    ANTHROPIC_API_KEY: str
+    #GEMINI
+    GEMINI_API_KEY: str
 
     @computed_field
     @property
