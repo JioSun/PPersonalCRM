@@ -1,13 +1,15 @@
 import logging
+
+from celery import chain
 from fastapi import APIRouter, status, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import get_current_active_user
+from backend.app.celery_tasks.email_tasks.tasks import send_invoice_email
+from backend.app.celery_tasks.pdf_tasks.tasks import render_pdf
 from backend.app.core.db import get_db
-
-from backend.app.models.user import User
-from backend.app.models.invoice import InvoiceRead, InvoiceCreate, InvoiceUpdate, InvoiceList
-
+from backend.app.core.redis_py import get_redis
 from backend.app.crud.invoice import (
     existing_invoice_check,
     create_invoice,
@@ -16,6 +18,8 @@ from backend.app.crud.invoice import (
     get_invoice_by_id,
     update_invoice_by_id
 )
+from backend.app.models.invoice import InvoiceRead, InvoiceCreate, InvoiceUpdate, InvoiceList
+from backend.app.models.user import User
 
 router = APIRouter(prefix="/invoices", tags=["invoice"])
 logger = logging.getLogger(__name__)
@@ -63,13 +67,15 @@ async def create_new_invoice(
         invoice_in: InvoiceCreate,
         deal_id: str,
         current_user: User = Depends(get_current_active_user),
-        session: Session = Depends(get_db)
+        session: Session = Depends(get_db),
+        conn = Depends(get_redis)
 ) -> InvoiceRead:
     logger.debug("Проверка на существование счета")
 
     invoice_existing = await existing_invoice_check(
         user_id=current_user.id,
-        session=session
+        session=session,
+        label=invoice_in.label
     )
     if invoice_existing is not None:
         logger.error('Счет уже существует')
@@ -81,9 +87,12 @@ async def create_new_invoice(
         user_id=current_user.id,
         deal_id=deal_id,
         mid_amount=invoice_in.mid_amount,
-        due_data=invoice_in.due_date,
+        due_date=invoice_in.due_date,
+        label=invoice_in.label,
         session=session
     )
+
+    await conn.delete(f'dashboard:{current_user.id}')
     return new_invoice
 
 
@@ -104,7 +113,8 @@ async def update_invoice(
         invoice_id: str,
         new_invoice_data: InvoiceUpdate,
         session: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)
+        current_user: User = Depends(get_current_active_user),
+        conn = Depends(get_redis)
 ):
     updated_invoice = await update_invoice_by_id(
         invoice_id=invoice_id,
@@ -113,4 +123,17 @@ async def update_invoice(
     )
     if not updated_invoice or updated_invoice.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    await conn.delete(f'dashboard:{current_user.id}')
     return updated_invoice
+
+@router.post("/{invoice_id}/generate_pdf", status_code=status.HTTP_201_CREATED)
+async def invoice_pdf(
+        invoice_id: str,
+        current_user: User = Depends(get_current_active_user),
+):
+   result = await run_in_threadpool(chain(
+       render_pdf.s(invoice_id),
+       send_invoice_email.s(current_user.email, invoice_id)).apply_async)
+
+   logger.debug(result)
+   return {"job_id": result.id}

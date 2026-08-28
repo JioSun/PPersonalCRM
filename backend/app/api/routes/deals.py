@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session  # или AsyncSession, если исполь
 
 from backend.app.api.dependencies import get_current_active_user
 from backend.app.core.db import get_db
+from backend.app.core.redis_py import get_redis
 
 from backend.app.models.deal import DealRead, DealCreate, DealUpdate
 from backend.app.models.user import User
@@ -26,9 +27,8 @@ async def get_deals(
         offset: int = Query(default=0, ge=0),
         limit: int = Query(default=20, le=100),
         current_user: User = Depends(get_current_active_user),
-        session: Session = Depends(get_db)  # <-- Получаем сессию здесь
+        session: Session = Depends(get_db),
 ) -> list[DealRead]:
-    # Убрана блокировка по пустому q, теперь выводится весь список
     deals = await get_deals_by_query(
         user_id=current_user.id,
         q=q,
@@ -44,7 +44,8 @@ async def create_new_deal(
         deal_in: DealCreate,
         client_id: str,
         current_user: User = Depends(get_current_active_user),
-        session: Session = Depends(get_db)
+        session: Session = Depends(get_db),
+        conn = Depends(get_redis)
 ) -> DealRead:
 
     deal_existing = await existing_deal_check(
@@ -65,6 +66,7 @@ async def create_new_deal(
         client_id=client_id,
         session=session
     )
+    await conn.delete(f'dashboard:{current_user.id}')
     return new_deal
 
 
@@ -87,7 +89,8 @@ async def update_deal(
         deal_id: str,
         new_deal_data: DealUpdate,
         session: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)
+        current_user: User = Depends(get_current_active_user),
+        conn = Depends(get_redis)
 ):
     updated_deal = await update_deal_by_id(
         deal_id=deal_id,
@@ -96,4 +99,5 @@ async def update_deal(
     )
     if not updated_deal or updated_deal.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found")
+    await conn.delete(f'dashboard:{current_user.id}')
     return updated_deal

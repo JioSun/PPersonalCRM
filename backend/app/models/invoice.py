@@ -1,21 +1,23 @@
 import decimal
-from datetime import datetime
+from datetime import datetime, date
 from typing import TYPE_CHECKING, Optional, List
 
 from pydantic import BaseModel
+from sqlalchemy import Column, Date
 from sqlmodel import SQLModel, Field, Relationship, DateTime
 
 from backend.app.models.utils import generate_ulid, get_datetime_utc
 
 if TYPE_CHECKING:
     from backend.app.models.deal import Deal
+    from backend.app.models.client import Client
 
 #base
 class InvoiceBase(SQLModel):
     is_paid: bool = Field(default=False)
     label: str = Field(max_length=255, index=True)
     mid_amount: decimal.Decimal = Field(max_digits=8, decimal_places=2, default=decimal.Decimal(0))
-    due_date: datetime | None = None
+    due_date: date | None = Field(default=None, sa_column=Column(Date))
 
 
 #table

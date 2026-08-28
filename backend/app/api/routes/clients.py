@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import get_current_active_user
 from backend.app.core.db import get_db
+from backend.app.core.redis_py import get_redis
 from backend.app.models.client import ClientRead, ClientCreate, ClientUpdate
 from backend.app.models.user import User
 
 from backend.app.crud.client import (
     create_client,
-    get_clients_by_user_id,
     existing_client_check,
     get_clients_by_query,
     get_client_by_id,
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 async def create_new_client(
         client_in: ClientCreate,
         current_user: User = Depends(get_current_active_user),
-        session: Session = Depends(get_db)  # <-- Добавили сессию
+        session: Session = Depends(get_db),
+        conn = Depends(get_redis)
 ) -> ClientRead:
     logger.debug("Проверка на существование клиента")
     client_existing = await existing_client_check(
@@ -46,6 +47,8 @@ async def create_new_client(
         notes=client_in.notes,
         session=session
     )
+
+    await conn.delete(f'dashboard:{current_user.id}')
     return client
 
 
@@ -68,7 +71,6 @@ async def get_clients(
     return clients
 
 
-# ИСПРАВЛЕНО: Добавлен /{client_id} в путь
 @router.get("/{client_id}", response_model=ClientRead, status_code=status.HTTP_200_OK)
 async def get_client(
         client_id: str,
@@ -81,19 +83,21 @@ async def get_client(
     return client
 
 
-# ИСПРАВЛЕНО: Добавлен /{client_id} в путь
 @router.patch("/{client_id}", response_model=ClientRead, status_code=status.HTTP_200_OK)
 async def update_client(
         client_id: str,
         client_in: ClientUpdate,
         session: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)
+        current_user: User = Depends(get_current_active_user),
+        conn = Depends(get_redis)
 ):
     updated_client = await update_client_by_id(
         client_id=client_id,
         client_in=client_in,
         session=session
     )
+
     if not updated_client or updated_client.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+    await conn.delete(f'dashboard:{current_user.id}')
     return updated_client

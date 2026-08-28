@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Чек</title>
+<style>
+    :root {
+        --purple: #6C4AB6;
+        --purple-dark: #4E2F94;
+        --text-light: #F4F0FB;
+        --border: #E3DBF5;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html, body {
+        height: 100%;
+        margin: 0;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        background: #EDEDED;
+    }
+
+    /* Контейнер чека: высота задаётся фиксированно,
+       три блока делят её как 1 / 3 / 1 (сумма частей = 5) */
+    .receipt {
+        width: 380px;
+        height: 700px;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        overflow: hidden;
+    }
+
+    .receipt__header,
+    .receipt__footer {
+        flex: 1 1 0;              /* 1 часть из 5 */
+        background: var(--purple);
+        background-image: linear-gradient(135deg, var(--purple), var(--purple-dark));
+        color: var(--text-light);
+        display: flex;
+        align-items: center;      /* вертикальный центр */
+        justify-content: flex-start; /* слева */
+        padding: 0 24px;
+    }
+
+    .receipt__header h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    .receipt__body {
+        flex: 3 1 0;               /* 3 части из 5 */
+        display: flex;
+        flex-direction: column;
+        align-items: center;       /* блоки по центру, пока помещаются */
+        padding: 20px 24px 0;      /* сверху */
+        overflow: auto;            /* скролл, если товаров много и не влезают */
+    }
+
+    .items-list {
+        width: 100%;
+    }
+
+    /* Каждая позиция — отдельный блок "ключ: значение",
+       без общего заголовка сверху (аналог dict/hash-таблицы) */
+    .item-block {
+        width: 100%;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--purple);
+        font-size: 13px;
+    }
+
+    .item-block:last-of-type {
+        border-bottom: none;
+    }
+
+    .item-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+    }
+
+    .item-row .key {
+        color: var(--purple-dark);
+        font-weight: 600;
+    }
+
+    .item-row .value {
+        color: #333;
+        text-align: right;
+    }
+
+    .total-block {
+        width: 100%;
+        margin-top: 4px;
+        padding-top: 12px;
+        border-top: 3px solid var(--purple);
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--purple-dark);
+    }
+</style>
+</head>
+<body>
+
+<div class="receipt">
+
+    <div class="receipt__header">
+        <h1>Магазин «Пример»</h1>
+    </div>
+
+    <div class="receipt__body">
+        <div class="items-list" id="items-list">
+            {item_blocks}
+        </div>
+    </div>
+
+    <div class="receipt__footer">
+        <!-- пусто -->
+    </div>
+</div>
+
+</body>
+</html>
