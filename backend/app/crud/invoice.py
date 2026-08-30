@@ -51,17 +51,18 @@ async def existing_invoice_check(user_id: str, label: str, session: AsyncSession
     return result.scalar_one_or_none()
 
 
-async def get_invoice_by_id(invoice_id: str, session: AsyncSession) -> Invoice | None:
-    stmt = select(Invoice).where(Invoice.id == invoice_id)
+async def get_invoice_by_id(invoice_id: str, user_id: str, session: AsyncSession) -> Invoice | None:
+    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 async def update_invoice_by_id(
         invoice_id: str,
+        user_id: str,
         invoice_in: InvoiceUpdate,
         session: AsyncSession
 ) -> Invoice | None:
-    db_invoice = await get_invoice_by_id(invoice_id=invoice_id, session=session)
+    db_invoice = await get_invoice_by_id(invoice_id=invoice_id, user_id=user_id, session=session)
     if not db_invoice:
         return None
 

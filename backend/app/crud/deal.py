@@ -46,13 +46,6 @@ async def get_deals_by_clientname(clientname: str, session: Session) -> list[Dea
     result = await session.execute(stmt)
     return result.scalars().all()
 
-
-async def existing_deal_check(user_id: str, name: str, session: Session) -> Deal | None:
-    stmt = select(Deal).where(and_(Deal.name == name, Deal.user_id == user_id))
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none()
-
-
 async def get_deals_by_query(
         user_id: str,
         q: str,
@@ -83,7 +76,7 @@ async def update_deal_by_id(
         deal_in: DealUpdate,
         session: Session
 ) -> Deal | None:
-    db_deal = await get_deal_by_id(deal_id=deal_id, session=session)
+    db_deal = await get_deal_by_id(deal_id=deal_id, user_id=user_id, session=session)
     if not db_deal:
         return None
 
