@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, Field, Relationship, Column
 from backend.app.models.constants import DealStatus
 from backend.app.models.invoice import InvoiceCreate
 from backend.app.models.utils import get_datetime_utc, generate_ulid
+from backend.app.working_llm.llm_classes import Currency
 
 if TYPE_CHECKING:
     from backend.app.models.client import Client
@@ -18,6 +19,7 @@ class DealBase(SQLModel):
     name: str = Field(max_length=255, index=True)
     amount: decimal.Decimal = Field(max_digits=8, decimal_places=2, default=decimal.Decimal(0))
     status: DealStatus = DealStatus.NEW
+    currency: Currency = Currency.USD
     deadline: datetime | None = Field(
     default=None,
     sa_column=Column(DateTime(timezone=True))

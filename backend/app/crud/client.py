@@ -57,18 +57,19 @@ async def get_clients_by_query(
     return result.scalars().all()
 
 
-async def get_client_by_id(client_id: str, session: Session) -> Client | None:
-    stmt = select(Client).where(Client.id == client_id)
+async def get_client_by_id(client_id: str, user_id, session: Session) -> Client | None:
+    stmt = select(Client).where(Client.id == client_id, Client.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def update_client_by_id(
         client_id: str,
+        user_id: str,
         client_in: ClientUpdate,
         session: Session
 ) -> Client | None:
-    db_client = await get_client_by_id(client_id=client_id, session=session)
+    db_client = await get_client_by_id(client_id=client_id, user_id=user_id, session=session)
     if not db_client:
         return None
 

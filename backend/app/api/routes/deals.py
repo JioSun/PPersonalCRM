@@ -83,7 +83,7 @@ async def get_deal(
     return deal
 
 
-# ИСПРАВЛЕНО: Добавлен /{deal_id} в путь
+
 @router.patch("/{deal_id}", status_code=status.HTTP_200_OK, response_model=DealRead)
 async def update_deal(
         deal_id: str,

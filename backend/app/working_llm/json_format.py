@@ -2,8 +2,10 @@ import asyncio
 from typing import final
 import json
 from google import genai
+from google.genai import errors
 from backend.app.working_llm.llm_classes import ExtractedDealInfo
 from backend.app.core.config import settings
+from tenacity import retry_if_exception, stop_after_attempt, wait_exponential, retry
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -20,11 +22,15 @@ SYSTEM_PROMPT = """ИНСТРУКЦИЯ ДЛЯ ОБРАБОТКИ ЗАМЕТОК
 3) deadline — если в тексте есть дата дедлайна сделки, сохрани её в deadline. Если даты нет — null.
 
 Никогда не выдумывай значения полей, которых нет в тексте — используй null. 
-
+<list>{deal_names}</list>
 <note>{note_text}</note>"""
 
-async def note_formatter(note_text):
-    final_prompt = SYSTEM_PROMPT.format(note_text=note_text)
+def is_rate_limit_error(exception):
+    return isinstance(exception, errors.APIError) and exception.code in (429, 500, 503)
+
+@retry(retry=retry_if_exception(is_rate_limit_error), wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(3))
+async def note_formatter(note_text: str, deal_names: str):
+    final_prompt = SYSTEM_PROMPT.format(note_text=note_text, deal_names=deal_names)
     interaction = await client.aio.interactions.create(
         model="gemini-3.6-flash",
         input=final_prompt,
@@ -34,7 +40,6 @@ async def note_formatter(note_text):
                 "schema": ExtractedDealInfo.model_json_schema()
             },
     )
-    print(final_prompt)
 
     return ExtractedDealInfo.model_validate_json(interaction.output_text)
 

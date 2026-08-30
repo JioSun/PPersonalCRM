@@ -1,6 +1,8 @@
+import asyncio
+
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, and_
-
+from backend.app.core.db import get_db
 from backend.app.models.deal import Deal, DealUpdate
 from backend.app.models.client import Client  # Требуется для JOIN'а ниже
 
@@ -69,14 +71,15 @@ async def get_deals_by_query(
     return result.scalars().all()
 
 
-async def get_deal_by_id(deal_id: str, session: Session) -> Deal | None:
-    stmt = select(Deal).where(Deal.id == deal_id)
+async def get_deal_by_id(deal_id: str, user_id: str, session: Session) -> Deal | None:
+    stmt = select(Deal).where(Deal.id == deal_id, Deal.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def update_deal_by_id(
         deal_id: str,
+        user_id: str,
         deal_in: DealUpdate,
         session: Session
 ) -> Deal | None:
@@ -84,7 +87,6 @@ async def update_deal_by_id(
     if not db_deal:
         return None
 
-    # ИСПРАВЛЕНО: Магия частичного обновления (exclude_unset=True)
     update_data = deal_in.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
@@ -95,3 +97,22 @@ async def update_deal_by_id(
     await session.refresh(db_deal)
 
     return db_deal
+
+async def get_deals_by_client_id(client_id: str, session: Session) -> list[dict]:
+    stmt = (select(Deal.id, Deal.name, Deal.amount, Deal.deadline)
+            .where(Deal.client_id == client_id)
+            .order_by(Deal.created_at)
+            .offset(0).limit(10))
+
+    result = (await session.execute(stmt)).all()
+    return [row._asdict() for row in result]
+
+
+async def main():
+    async for session in get_db():
+        res = await get_deals_by_client_id(session=session, client_id='01M0MYJSCZM8S54YDQR0JGX4V6')
+        print(res)
+        break
+
+if __name__ == '__main__':
+    asyncio.run(main())
