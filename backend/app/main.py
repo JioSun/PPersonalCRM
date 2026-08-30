@@ -42,7 +42,8 @@ app.include_router(
 )
 logger.debug("Invoice router init")
 
-#app.middleware("http://localhost")(rate_limit_middleware)
+app.middleware("http")(rate_limit_middleware)
+
 @app.get("/")
 async def greetings():
     logger.info("Greetings router init")

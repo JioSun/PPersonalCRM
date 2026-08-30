@@ -118,10 +118,11 @@ async def update_invoice(
 ):
     updated_invoice = await update_invoice_by_id(
         invoice_id=invoice_id,
+        user_id=current_user.id,
         invoice_in=new_invoice_data,
         session=session
     )
-    if not updated_invoice or updated_invoice.user_id != current_user.id:
+    if not updated_invoice:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     await conn.delete(f'dashboard:{current_user.id}')
     return updated_invoice
@@ -130,10 +131,19 @@ async def update_invoice(
 async def invoice_pdf(
         invoice_id: str,
         current_user: User = Depends(get_current_active_user),
+        session: Session = Depends(get_db),
+        conn = Depends(get_redis)
 ):
+   invoice_existing = await get_invoice_by_id(invoice_id=invoice_id, session=session)
+
+   if not invoice_existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+
    result = await run_in_threadpool(chain(
        render_pdf.s(invoice_id),
        send_invoice_email.s(current_user.email, invoice_id)).apply_async)
+
+   await conn.set(f'job_owner:{result.id}', current_user.id, expires=3600)
 
    logger.debug(result)
    return {"job_id": result.id}

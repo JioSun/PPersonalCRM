@@ -1,9 +1,8 @@
-from fastapi import Request
+from fastapi import Request, APIRouter
 from redis import Redis
 from starlette.responses import JSONResponse
 
 from backend.app.core.redis_py import get_redis
-
 
 async def check_rate_limit(conn, key: str, limit: int, window: int = 60) -> bool:
     count = await conn.incr(key)

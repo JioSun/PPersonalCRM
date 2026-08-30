@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session  # или AsyncSession, если исполь
 from backend.app.api.dependencies import get_current_active_user
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
+from backend.app.crud.client import get_client_by_id
 
 from backend.app.models.deal import DealRead, DealCreate, DealUpdate
 from backend.app.models.user import User
@@ -48,11 +49,11 @@ async def create_new_deal(
         conn = Depends(get_redis)
 ) -> DealRead:
 
-    deal_existing = await existing_deal_check(
-        name=deal_in.name,
-        user_id=current_user.id,
-        session=session
-    )
+    client_existing = get_client_by_id(client_id=client_id, user_id=current_user.id, session=session)
+    if not client_existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+
+    deal_existing = await get_deal_by_id(deal_id=deal_in.deal_id, user_id=current_user.id, session=session)
 
     if deal_existing:
         logger.error('Сделка уже существует')
@@ -77,8 +78,8 @@ async def get_deal(
         session: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ) -> DealRead:
-    deal = await get_deal_by_id(deal_id=deal_id, session=session)
-    if not deal or deal.user_id != current_user.id:
+    deal = await get_deal_by_id(deal_id=deal_id, user_id=current_user.id, session=session)
+    if not deal:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found")
     return deal
 
@@ -94,10 +95,11 @@ async def update_deal(
 ):
     updated_deal = await update_deal_by_id(
         deal_id=deal_id,
+        user_id=current_user.id,
         deal_in=new_deal_data,
         session=session
     )
-    if not updated_deal or updated_deal.user_id != current_user.id:
+    if not updated_deal:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found")
     await conn.delete(f'dashboard:{current_user.id}')
     return updated_deal
