@@ -14,3 +14,4 @@ class ExtractedDealInfo(BaseModel):
     amount: Decimal | None = None
     deadline: date | None = None
     currency: Currency | None = None
+    matched_index: int | None = None
