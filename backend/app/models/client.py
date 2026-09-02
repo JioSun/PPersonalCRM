@@ -1,24 +1,24 @@
 from datetime import datetime
-
-from sqlalchemy import UniqueConstraint
-from sqlmodel import SQLModel, Field, Relationship, Index, DateTime
-
-from backend.app.models.invoice import Invoice
-from backend.app.models.utils import generate_ulid, get_datetime_utc
 from typing import TYPE_CHECKING, Optional
 
-if TYPE_CHECKING:
-    from backend.app.models.user import User
-    from backend.app.models.deal import Deal
+from sqlalchemy import UniqueConstraint
+from sqlmodel import DateTime, Field, Index, Relationship, SQLModel
 
-#base
+from backend.app.models.utils import generate_ulid, get_datetime_utc
+
+if TYPE_CHECKING:
+    from backend.app.models.deal import Deal
+    from backend.app.models.user import User
+
+
+# base
 class ClientBase(SQLModel):
     username: str = Field(min_length=2, max_length=255)
     first_name: str | None = Field(max_length=255)
     last_name: str | None = Field(max_length=255)
 
 
-#table
+# table
 class Client(ClientBase, table=True):
     __tablename__ = "client"
 
@@ -38,17 +38,21 @@ class Client(ClientBase, table=True):
         UniqueConstraint("user_id", "username", name="unique_username_for_user"),
     )
 
-#create
+
+# create
 class ClientCreate(ClientBase):
     notes: str | None = Field(max_length=500, default=None)
 
 
-#update
-class ClientUpdate(ClientBase):
-    client_name: str | None = Field(max_length=255)
-    notes: str | None = Field(max_length=500)
+# update
+class ClientUpdate(SQLModel):
+    username: str | None = Field(default=None, )
+    notes: str | None = Field(default=None, max_length=500)
+    first_name: str | None = Field(default=None, max_length=255)
+    last_name: str | None = Field(default=None, max_length=255)
 
-#read
+
+# read
 class ClientRead(ClientBase):
     id: str
     notes: str | None = Field(max_length=500)

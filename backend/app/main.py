@@ -2,7 +2,7 @@ import logging
 
 from fastapi import FastAPI
 
-from backend.app.api.routes import users, clients, deals, invoices, dashboards, job
+from backend.app.api.routes import clients, dashboards, deals, invoices, job, users
 from backend.app.logger import setup_logging
 from backend.app.middlewares.rate_limiting import rate_limit_middleware
 
@@ -44,13 +44,14 @@ logger.debug("Invoice router init")
 
 app.middleware("http")(rate_limit_middleware)
 
+
 @app.get("/")
 async def greetings():
     logger.info("Greetings router init")
     return {"greetings": "Hello World"}
 
+
 @app.get("/health")
 async def health():
     logger.info("Health router init")
     return True
-

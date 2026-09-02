@@ -1,49 +1,49 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlmodel import SQLModel, Field, Relationship
+
 from pydantic import EmailStr
-from backend.app.models.utils import generate_ulid, get_datetime_utc
 from sqlalchemy import DateTime
+from sqlmodel import Field, Relationship, SQLModel
+
+from backend.app.models.utils import generate_ulid, get_datetime_utc
 
 if TYPE_CHECKING:
     from backend.app.models.client import Client
     from backend.app.models.deal import Deal
 
-#base
+
+# base
 class UserBase(SQLModel):
     username: str = Field(max_length=255)
-    email: EmailStr = Field(unique=True, index=True, max_length=255,  schema_extra={"example": "userson@example.com"})
+    email: EmailStr = Field(
+        unique=True,
+        index=True,
+        max_length=255,
+        schema_extra={"example": "userson@example.com"},
+    )
     is_active: bool = True
 
 
-#table
-class User(UserBase, table=True):
-    __tablename__ = "user"
+# table
 
-    id: str | None = Field(default_factory=generate_ulid, primary_key=True)
-    hashed_password: str
-
-    created_at: datetime | None = Field(
-        default_factory=get_datetime_utc,
-        sa_type=DateTime(timezone=True),  # type: ignore
-    )
-    clients: list["Client"] = Relationship(back_populates="user")
-    deals: list["Deal"] = Relationship(back_populates="user")
-
-#create
+# create
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
 
-#update
-class UserUpdate(UserBase):
+
+# update
+class UserUpdate(SQLModel):
     username: str | None = Field(default=None, max_length=255)
     email: EmailStr | None = Field(default=None, max_length=255)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
 
 class UpdatePassword(SQLModel):
     current_password: str = Field(min_length=8, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
-#read
+
+# read
 class UserRead(UserBase):
     id: str
     created_at: datetime | None = None
