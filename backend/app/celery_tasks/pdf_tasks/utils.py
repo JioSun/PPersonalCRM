@@ -11,6 +11,7 @@ ITEM_BLOCK_TEMPLATE = """<div class="item-block">
 </div>
 """
 
+
 def generate_html(item, template_path: str):
     rows_html = ""
     rows_html += ITEM_BLOCK_TEMPLATE.format(

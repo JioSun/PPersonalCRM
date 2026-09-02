@@ -1,48 +1,39 @@
 import decimal
 from datetime import datetime
 from typing import TYPE_CHECKING
+
 from sqlalchemy import DateTime
-from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlalchemy.orm import Mapped
+from sqlmodel import Column, Field, Relationship, SQLModel
 
 from backend.app.models.constants import DealStatus
-from backend.app.models.invoice import InvoiceCreate
-from backend.app.models.utils import get_datetime_utc, generate_ulid
+from backend.app.models.utils import generate_ulid, get_datetime_utc
 from backend.app.working_llm.llm_classes import Currency
 
 if TYPE_CHECKING:
     from backend.app.models.client import Client
-    from backend.app.models.user import User
     from backend.app.models.invoice import Invoice
+    from backend.app.models.user import User
 
-# base — общие поля для Create/Update/Read
+
 class DealBase(SQLModel):
     name: str = Field(max_length=255, index=True)
-    amount: decimal.Decimal = Field(max_digits=8, decimal_places=2, default=decimal.Decimal(0))
-    status: DealStatus = DealStatus.NEW
-    currency: Currency = Currency.USD
-    deadline: datetime | None = Field(
-    default=None,
-    sa_column=Column(DateTime(timezone=True))
-)
-
-class Deal(DealBase, table=True):
-    __tablename__ = "deal"
-
-    id: str = Field(default_factory=generate_ulid, primary_key=True)
-    created_at: datetime | None = Field(
-        default_factory=get_datetime_utc,
-        sa_type=DateTime(timezone=True),  # type: ignore
+    amount: decimal.Decimal = Field(
+        max_digits=8, decimal_places=2, default=decimal.Decimal(0)
     )
-    client_id: str = Field(foreign_key="client.id", index=True)
-    user_id: str = Field(foreign_key="user.id", index=True)
+    status: DealStatus = DealStatus.NEW
+    currency: Currency | None = Field(default=None, nullable=True)
+    deadline: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
 
-    client: "Client" = Relationship(back_populates="deals")
-    user: "User" = Relationship(back_populates="deals")
-    invoices: list["Invoice"] = Relationship(back_populates="deal")
+
+
 
 # create
 class DealCreate(DealBase):
     client_id: str
+
 
 # update
 class DealUpdate(SQLModel):
@@ -50,6 +41,7 @@ class DealUpdate(SQLModel):
     amount: decimal.Decimal | None = Field(default=None, max_digits=8, decimal_places=2)
     status: DealStatus | None = None
     deadline: datetime | None = None
+
 
 # read
 class DealRead(DealBase):

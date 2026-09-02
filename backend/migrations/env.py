@@ -5,12 +5,13 @@ from logging.config import fileConfig
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
 from backend.app.core.config import settings
-from alembic import context
-from backend.app.models import SQLModel, User, Client, Deal, Invoice
+from backend.app.models import SQLModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -34,6 +35,7 @@ target_metadata = SQLModel.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
 
 def get_url():
     return str(settings.SQLALCHEMY_DATABASE_URI)
@@ -66,7 +68,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section)
-    configuration['sqlalchemy.url'] = get_url()
+    configuration["sqlalchemy.url"] = get_url()
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",

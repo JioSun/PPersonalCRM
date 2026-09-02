@@ -1,13 +1,14 @@
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker, selectinload
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, relationship, selectinload, sessionmaker
 
 Base = declarative_base()
 
 
 # --- 1. ОПИСАНИЕ МОДЕЛЕЙ (БЕЗ FOREIGN KEY) ---
 
+
 class Order(Base):
-    __tablename__ = 'orders'
+    __tablename__ = "orders"
     id = Column(Integer, primary_key=True)
     description = Column(String)
 
@@ -15,12 +16,12 @@ class Order(Base):
     statuses = relationship(
         "OrderStatus",
         primaryjoin="Order.id == OrderStatus.order_id",
-        foreign_keys="[OrderStatus.order_id]"
+        foreign_keys="[OrderStatus.order_id]",
     )
 
 
 class OrderStatus(Base):
-    __tablename__ = 'order_status'
+    __tablename__ = "order_status"
     id = Column(Integer, primary_key=True)
     # Обрати внимание: это просто Integer, без ForeignKey('orders.id')
     order_id = Column(Integer)
@@ -29,14 +30,13 @@ class OrderStatus(Base):
 
 # --- 2. НАСТРОЙКА БАЗЫ ДАННЫХ ---
 # echo=True включит логирование всех SQL-запросов в консоль
-engine = create_engine('sqlite:///:memory:', echo=True)
+engine = create_engine("sqlite:///:memory:", echo=True)
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 
 
 def run_test():
     with Session() as session:
-
         # --- 3. ЗАПОЛНЕНИЕ ДАННЫМИ ---
         print("\n" + "=" * 50)
         print("СОЗДАЕМ ДАННЫЕ (заказы и их статусы)")
