@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import settings
-from backend.app.models.user import User
+from backend.app.models.database_models import User
 
 passwordHash = PasswordHash.recommended()
 
@@ -49,7 +49,7 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
 
-async def authenticate_user(session: Session, email: str, password: str) -> User | None:
+async def authenticate_user(session: AsyncSession, email: str, password: str) -> User | None:
     stmt = select(User).where(User.email == email)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()

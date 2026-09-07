@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     # GEMINI
     GEMINI_API_KEY: str
 
-    @property
     @computed_field
+    @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return str(
             PostgresDsn.build(

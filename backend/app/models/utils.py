@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from datetime import date
+
 from ulid import ULID
 
 

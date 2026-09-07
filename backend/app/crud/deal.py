@@ -1,21 +1,22 @@
-import asyncio
-from typing import Sequence
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Sequence
 
-from sqlalchemy import select, Row
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from backend.app.core.db import get_db
-from backend.app.models.client import Client
-from backend.app.models.deal import Deal, DealUpdate, DealCreate
+from backend.app.models.database_models.client import Client
+from backend.app.models.database_models.deal import Deal
+from backend.app.schemas.deal import DealUpdate
 
 
 async def create_deal(
     name: str,
-    amount: str,
+    amount: Decimal,
     user_id: str,
     client_id: str,
-    deadline: str | None,
+    deadline: datetime | None,
     session: AsyncSession,
 ) -> Deal:
     new_deal = Deal(
@@ -37,14 +38,15 @@ async def get_deals_by_user_id(user_id: str, session: AsyncSession) -> Sequence[
     return result.scalars().all()
 
 
-async def get_deals_by_clientname(clientname: str, session: AsyncSession) -> Sequence[Deal]:
-    # ИСПРАВЛЕНО: Нельзя напрямую фильтровать по Deal.client.username.
-    # Если фильтруешь по полю из другой таблицы, нужен JOIN.
+async def get_deals_by_client_name(
+        client_name: str,
+        session: AsyncSession
+) -> Sequence[Deal]:
     stmt = (
         select(Deal)
         .join(Client)
         .options(selectinload(Deal.client))
-        .where(Client.username == clientname)
+        .where(Client.client_name == client_name)
     )
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -52,7 +54,7 @@ async def get_deals_by_clientname(clientname: str, session: AsyncSession) -> Seq
 
 async def get_deals_by_query(
     user_id: str, q: str, offset: int, limit: int, session: AsyncSession
-) -> list[Deal]:
+) -> Sequence[Deal]:
     stmt = (
         select(Deal)
         .where(Deal.user_id == user_id)
@@ -64,7 +66,11 @@ async def get_deals_by_query(
     return result.scalars().all()
 
 
-async def get_deal_by_id(deal_id: str, user_id: str, session: AsyncSession) -> Deal | None:
+async def get_deal_by_id(
+        deal_id: str,
+        user_id: str,
+        session: AsyncSession
+) -> Deal | None:
     stmt = select(Deal).where(Deal.id == deal_id, Deal.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
@@ -93,7 +99,11 @@ async def update_deal_by_id(
     return db_deal
 
 
-async def get_deals_by_client_id(client_id: str, user_id: str, session: AsyncSession) -> Sequence[Row]:
+async def get_deals_by_client_id(
+        client_id: str,
+        user_id: str,
+        session: AsyncSession
+) -> list[dict[str, Any]]:
     stmt = (
         select(Deal.id, Deal.name, Deal.amount, Deal.deadline)
         .where(Deal.client_id == client_id, Deal.user_id == user_id)
@@ -103,4 +113,4 @@ async def get_deals_by_client_id(client_id: str, user_id: str, session: AsyncSes
     )
 
     result = await session.execute(stmt)
-    return result.all()
+    return [dict(row) for row in result.all()]

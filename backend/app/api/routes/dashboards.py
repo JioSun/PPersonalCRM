@@ -1,24 +1,15 @@
 import logging
-import time
 
-from fastapi import APIRouter, Depends
-
-from backend.app.api.dependencies import get_current_active_user
-from backend.app.core.db import get_db
-from backend.app.core.redis_py import get_redis
-from backend.app.crud.client import get_clients_sum
-from backend.app.crud.invoice import get_invoices_list
-from backend.app.models.dashboard import DashboardResponce
-from backend.app.models.user import User
+from fastapi import APIRouter
 
 router = APIRouter(tags=["dashboards"])
 logger = logging.getLogger(__name__)
 
-
+'''
 @router.get("/dashboard", response_model=DashboardResponce)
 async def dashboard(
-    session=Depends(get_db),
-    conn=Depends(get_redis),
+    session: AsyncSession =Depends(get_db),
+    conn: Redis =Depends(get_redis),
     current_user: User = Depends(get_current_active_user),
 ):
     start = time.perf_counter()
@@ -31,7 +22,11 @@ async def dashboard(
         return DashboardResponce.model_validate_json(get_result)
 
     clients_sum = await get_clients_sum(session=session, user_id=current_user.id)
-    overdue = await get_invoices_list(user_id=current_user.id, is_back=True, session=session)
+    overdue = await get_invoices_list(
+        user_id=current_user.id,
+        is_back=True,
+        session=session
+    )
 
     data = DashboardResponce(clients_summary=clients_sum, overdue_invoice=overdue)
 
@@ -39,3 +34,4 @@ async def dashboard(
     elapsed = time.perf_counter() - start
     logger.info(f"CACHE HIT: {elapsed * 1000:.2f}ms")
     return data
+'''

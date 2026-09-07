@@ -1,4 +1,4 @@
-from redis import Redis
+from redis.asyncio import Redis
 
 
 async def invalidate_dashboard(redis: Redis, user_id: str) -> None:

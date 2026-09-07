@@ -1,9 +1,11 @@
 import logging
+from decimal import Decimal
 
 from celery import chain
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.orm import Session
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.dependencies import get_current_active_user
 from backend.app.celery_tasks.email_tasks.tasks import send_invoice_email
@@ -18,13 +20,12 @@ from backend.app.crud.invoice import (
     get_invoices_sum,
     update_invoice_by_id,
 )
-from backend.app.models.invoice import (
+from backend.app.models.database_models import User
+from backend.app.schemas.invoice import (
     InvoiceCreate,
-    InvoiceList,
     InvoiceRead,
     InvoiceUpdate,
 )
-from backend.app.models.user import User
 
 router = APIRouter(prefix="/invoices", tags=["invoice"])
 logger = logging.getLogger(__name__)
@@ -33,19 +34,19 @@ logger = logging.getLogger(__name__)
 @router.get(
     "",
     status_code=status.HTTP_200_OK,
-    response_model=InvoiceList,
     response_model_exclude_none=True,
 )
-async def get_invoices(
+async def get_invoices[T](
     q: str = Query(default="", description="Поиск по названию/номеру"),
     is_paid: bool | None = None,
     is_back: bool | None = None,
-    total_sum: bool | None = None,
+    total_sum: Decimal | None = None,
     offset: int = Query(default=0, ge=0, description="Сколько записей пропустить"),
     limit: int = Query(default=20, le=100, description="Сколько записей вернуть"),
     current_user: User = Depends(get_current_active_user),
-    session: Session = Depends(get_db),
-) -> list[InvoiceRead]:
+    session: AsyncSession = Depends(get_db),
+) -> list[dict[str, T]]:
+    summary = 0
     if not is_paid:
         is_paid = None
     if not is_back:
@@ -61,15 +62,15 @@ async def get_invoices(
         is_back=is_back,
         is_paid=is_paid,
     )
-    if total_sum:
-        total_sum = await get_invoices_sum(
+    if total_sum is not None:
+        summary = await get_invoices_sum(
             session=session,
             user_id=current_user.id,
             q=q,
             is_back=is_back,
             is_paid=is_paid,
         )
-    return {"invoices": invoices, "total_sum": total_sum}
+    return {"invoices": invoices, "total_sum": summary}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=InvoiceRead)
@@ -77,8 +78,8 @@ async def create_new_invoice(
     invoice_in: InvoiceCreate,
     deal_id: str,
     current_user: User = Depends(get_current_active_user),
-    session: Session = Depends(get_db),
-    conn=Depends(get_redis),
+    session: AsyncSession = Depends(get_db),
+    conn: Redis = Depends(get_redis),
 ) -> InvoiceRead:
     logger.debug("Проверка на существование счета")
 
@@ -96,28 +97,29 @@ async def create_new_invoice(
         is_paid=invoice_in.is_paid if hasattr(invoice_in, "is_paid") else False,
         user_id=current_user.id,
         deal_id=deal_id,
-        mid_amount=invoice_in.mid_amount,
+        mid_amount=invoice_in.amount,
         due_date=invoice_in.due_date,
         label=invoice_in.label,
         session=session,
     )
 
+
     await conn.delete(f"dashboard:{current_user.id}")
-    return new_invoice
+    return InvoiceRead.model_validate(new_invoice)
 
 
 @router.get("/{invoice_id}", status_code=status.HTTP_200_OK, response_model=InvoiceRead)
 async def get_invoice(
     invoice_id: str,
-    session: Session = Depends(get_db),
+    session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> InvoiceRead:
-    invoice = await get_invoice_by_id(invoice_id=invoice_id, session=session)
+    invoice = await get_invoice_by_id(user_id=current_user.id, invoice_id=invoice_id, session=session)
     if not invoice or invoice.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
         )
-    return invoice
+    return InvoiceRead.model_validate(invoice)
 
 
 @router.patch(
@@ -126,10 +128,10 @@ async def get_invoice(
 async def update_invoice(
     invoice_id: str,
     new_invoice_data: InvoiceUpdate,
-    session: Session = Depends(get_db),
+    session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
-    conn=Depends(get_redis),
-):
+    conn: Redis=Depends(get_redis),
+) -> InvoiceRead:
     updated_invoice = await update_invoice_by_id(
         invoice_id=invoice_id,
         user_id=current_user.id,
@@ -141,17 +143,21 @@ async def update_invoice(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
         )
     await conn.delete(f"dashboard:{current_user.id}")
-    return updated_invoice
+    return InvoiceRead.model_validate(updated_invoice)
 
 
 @router.post("/{invoice_id}/generate_pdf", status_code=status.HTTP_201_CREATED)
 async def invoice_pdf(
     invoice_id: str,
     current_user: User = Depends(get_current_active_user),
-    session: Session = Depends(get_db),
-    conn=Depends(get_redis),
-):
-    invoice_existing = await get_invoice_by_id(invoice_id=invoice_id, user_id=current_user.id, session=session)
+    session: AsyncSession = Depends(get_db),
+    conn: Redis = Depends(get_redis),
+) -> dict[str, str]:
+    invoice_existing = await get_invoice_by_id(
+        invoice_id=invoice_id,
+        user_id=current_user.id,
+        session=session
+    )
 
     if not invoice_existing:
         raise HTTPException(
