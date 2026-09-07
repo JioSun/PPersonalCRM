@@ -1496,9 +1496,12 @@ dependencies = [
     { name = "google" },
     { name = "google-genai" },
     { name = "openai" },
+    { name = "phonenumbers" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pwdlib", extra = ["argon2"] },
+    { name = "pydantic", extra = ["email"] },
     { name = "pyjwt" },
+    { name = "pytest" },
     { name = "python-ulid" },
     { name = "redis" },
     { name = "sqlmodel" },
@@ -1526,9 +1529,12 @@ requires-dist = [
     { name = "google", specifier = ">=3.0.0" },
     { name = "google-genai", specifier = ">=2.20.0" },
     { name = "openai", specifier = ">=3.5.0" },
+    { name = "phonenumbers", specifier = ">=9.0.38" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.13.4" },
     { name = "pyjwt", specifier = ">=2.13.0" },
+    { name = "pytest", specifier = ">=9.1.1" },
     { name = "python-ulid", specifier = ">=4.0.1" },
     { name = "redis", specifier = ">=8.1.0" },
     { name = "sqlmodel", specifier = ">=0.0.39" },
@@ -1543,6 +1549,15 @@ dev = [
     { name = "personalcrm", virtual = "." },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.0" },
+]
+
+[[package]]
+name = "phonenumbers"
+version = "9.0.38"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/55/17ea3dcefbeabd0006e09dcecba1a4ec5b27acff788add158a061f39f46b/phonenumbers-9.0.38.tar.gz", hash = "sha256:6806bebd46638af2fc2609675ea046067a40512eca81bf1446132e2fda29d113", size = 2311043, upload-time = "2026-08-28T09:48:51.458Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/09/6df2574777489592b37e6b9cda72962709af2e121b122bf6aae19bcce7b4/phonenumbers-9.0.38-py2.py3-none-any.whl", hash = "sha256:f3cbeb1a42bf226060c60fc6277f5431755d325eddc23fbf2c72ef7e156113c6", size = 2594756, upload-time = "2026-08-28T09:48:48.33Z" },
 ]
 
 [[package]]

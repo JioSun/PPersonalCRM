@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.constants import Currency, InvoiceStatus
@@ -16,15 +16,15 @@ if TYPE_CHECKING:
 
 class Invoice(Base, IdMixin, TimestampMixin):
     __tablename__ = "invoices"
-    __mapper_args__ = {"version_id_col": "version"}
-    version: Mapped[int] = mapped_column(default=1)
 
+    label: Mapped[str] = mapped_column(String(50))
     number: Mapped[str] = mapped_column(default=generate_invoice_number)
     amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
     currency: Mapped[Currency] = mapped_column(default=Currency.USD)
     status: Mapped[InvoiceStatus] = mapped_column(default=InvoiceStatus.DRAFT)
-    due_date: Mapped[date] = mapped_column()
+    due_date: Mapped[date] = mapped_column(default=date.today())
     paid_at: Mapped[datetime | None] = mapped_column()
+    is_paid: Mapped[bool] = mapped_column(default=False)
 
     user_id: Mapped[str] = mapped_column(ForeignKey(
         "users.id", ondelete='CASCADE'),

@@ -2,12 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import (
-    CheckConstraint,
-    ForeignKey,
-    Index,
-    Text,
-)
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.constants import Currency, DealStatus
@@ -22,14 +17,14 @@ if TYPE_CHECKING:
 
 class Deal(Base, IdMixin, TimestampMixin):
     __tablename__ = "deals"
-    __mapper_args__ = {"version_id_col": "version"}
-    version: Mapped[int] = mapped_column(default=1)
+
+    version: Mapped[int] = mapped_column(server_default=text("1"))
 
     name: Mapped[str] = mapped_column(index=True)
     amount: Mapped[Decimal] = mapped_column(default=Decimal("0.00"))
     status: Mapped[DealStatus] = mapped_column(default=DealStatus.NEW)
     currency: Mapped[Currency] = mapped_column(default=Currency.USD)
-    deadline: Mapped[datetime | None] = mapped_column()
+    deadline: Mapped[datetime | None] = mapped_column(index=True)
     closed_at: Mapped[datetime | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(Text)
 
@@ -55,6 +50,8 @@ class Deal(Base, IdMixin, TimestampMixin):
         CheckConstraint("amount >= 0",  name="ck_deals_amount_positive"),
         Index("idx_client_id__and__status", "client_id", 'status'),
     )
+
+    __mapper_args__ = {"version_id_col": version}
 
 
 

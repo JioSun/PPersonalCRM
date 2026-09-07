@@ -11,15 +11,14 @@ dependencies = [
     "celery-types>=0.26.0",
     "fastapi[standard]>=0.140.0",
     "google>=3.0.0",
-
     "google-genai>=2.20.0",
-
     "openai>=3.5.0",
-
+    "phonenumbers>=9.0.38",
     "psycopg[binary]>=3.3.4",
-
     "pwdlib[argon2]>=0.3.0",
+    "pydantic[email]>=2.13.4",
     "pyjwt>=2.13.0",
+    "pytest>=9.1.1",
     "python-ulid>=4.0.1",
     "redis>=8.1.0",
     "sqlmodel>=0.0.39",
@@ -61,7 +60,7 @@ strict = false
 ignore_missing_imports = true
 disallow_incomplete_defs = true
 warn_unused_configs = true
-exclude = ["alembic/"]
+exclude = ["backend/migration/"]
 
 [tool.fastapi]
 entrypoint = "backend.app.main:app"

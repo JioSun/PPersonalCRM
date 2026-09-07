@@ -6,7 +6,7 @@ from fastapi.concurrency import run_in_threadpool
 from backend.app.api.dependencies import get_current_active_user
 from backend.app.celery_tasks.celery_init import app
 from backend.app.core.redis_py import get_redis
-from backend.app.models import User
+from backend.app.models.database_models import User
 
 router = APIRouter(prefix="/job", tags=["job"])
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ async def get_job(
     job_id: str,
     current_user: User = Depends(get_current_active_user),
     conn=Depends(get_redis),
-):
+) -> dict[str, str]:
     truly_user_id = conn.get(f"job_owner:{job_id}")
     if not truly_user_id:
         raise HTTPException(

@@ -1,16 +1,14 @@
-import asyncio
 import decimal
 from datetime import datetime
+from typing import Sequence
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from backend.app.core.db import get_db
-from backend.app.models.client import Client
-from backend.app.models.deal import Deal
-from backend.app.models.invoice import Invoice, InvoiceUpdate
+from backend.app.models.database_models import Client, Deal, Invoice
 from backend.app.models.utils import get_datetime_utc
+from backend.app.schemas.invoice import InvoiceUpdate
 
 
 async def create_invoice(
@@ -36,20 +34,20 @@ async def create_invoice(
     return new_invoice
 
 
-async def get_invoices_by_user_id(session: AsyncSession, user_id: str) -> list[Invoice]:
+async def get_invoices_by_user_id(session: AsyncSession, user_id: str) -> Sequence[Invoice]:
     stmt = select(Invoice).where(Invoice.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalars().all()
 
 
-async def get_invoices_by_clientname(
-    clientname: str, session: AsyncSession
-) -> list[Invoice]:
+async def get_invoices_by_client_name(
+    client_name: str, session: AsyncSession
+) -> Sequence[Invoice]:
     stmt = (
         select(Invoice)
         .join(Client)
         .options(selectinload(Invoice.client))
-        .where(Client.username == clientname)
+        .where(Client.client_name == client_name)
     )
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -93,17 +91,17 @@ async def update_invoice_by_id(
 
 
 async def _get_filtered_invoices_stmt(
-    user_id: str, q: str, is_paid: bool | None = None, is_back: bool | None = None
-):
+    user_id: str, q: str | None, is_paid: bool | None = None, is_back: bool | None = None
+) -> Select:
     stmt = select(Invoice).where(Invoice.user_id == user_id)
 
-    if q:
+    if q is not None:
         stmt = stmt.where(Invoice.label.ilike(f"%{q}%"))
 
     if is_paid is not None:
         stmt = stmt.where(Invoice.is_paid == is_paid)
 
-    if is_back:
+    if is_back is not None or not is_back:
         stmt = stmt.where(Invoice.due_date < get_datetime_utc())
 
     return stmt
@@ -113,12 +111,17 @@ async def get_invoices_list(
     session: AsyncSession,
     user_id: str,
     q: str,
-    offset: int = None,
-    limit: int = None,
+    offset: int | None = None,
+    limit: int | None = None,
     is_paid: bool | None = None,
     is_back: bool | None = None,
-) -> list[Invoice]:
-    stmt = await _get_filtered_invoices_stmt(user_id, q, is_paid, is_back)
+) -> Sequence[Invoice] | None:
+    stmt = await _get_filtered_invoices_stmt(
+        user_id=user_id,
+        q=q,
+        is_paid=is_paid,
+        is_back=is_back
+    )
     if not limit:
         stmt = stmt
     stmt = stmt.offset(offset).limit(limit)
@@ -134,13 +137,18 @@ async def get_invoices_sum(
     is_paid: bool | None = None,
     is_back: bool | None = None,
 ) -> decimal.Decimal:
-    stmt = _get_filtered_invoices_stmt(user_id, q, is_paid, is_back)
-    stmt = stmt.with_only_columns(func.coalesce(func.sum(Invoice.mid_amount), 0))
+    stmt = await _get_filtered_invoices_stmt(
+        user_id=user_id,
+        q=q,
+        is_paid=is_paid,
+        is_back=is_back
+    )
+    stmt = stmt.with_only_columns(func.coalesce(func.sum(Invoice.amount), 0))
     result = await session.scalar(stmt)
     return result
 
 
-async def get_invoice_with_client(invoice_id: str, session: AsyncSession):
+async def get_invoice_with_client(invoice_id: str, session: AsyncSession) -> Invoice | None:
     stmt = (
         select(Invoice)
         .options(joinedload(Invoice.deal).joinedload(Deal.client))

@@ -4,11 +4,11 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.db import get_db
 from backend.app.core.security import decode_token
-from backend.app.models.user import User
+from backend.app.models.database_models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),  # Парсим токен
-    session: Session = Depends(get_db),  # Получаем сессию
-) -> User:
+    session: AsyncSession = Depends(get_db),  # Получаем сессию
+) -> User | None:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Не удалось подтвердить учётные данные",
         headers={"WWW-Authenticate": "Bearer"},
-    )  # Создание информации при исключении
+    )
 
     try:
         payload = decode_token(token)

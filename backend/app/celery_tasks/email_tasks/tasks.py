@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
     retry_backoff=True,
     acks_late=True,
 )
-def send_invoice_email(self, base64_pdf: str, email: str, invoice_id: str):
+def send_invoice_email(self, base64_pdf: str, email: str, invoice_id: str) -> None:
     msg = MIMEMultipart()
     msg["From"] = settings.EMAIL
     msg["To"] = email
