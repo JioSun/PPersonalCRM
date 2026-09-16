@@ -45,3 +45,11 @@ class Invoice(Base, IdMixin, TimestampMixin):
         UniqueConstraint('user_id', 'number'),
         CheckConstraint('amount >= 0', name='ck_invoices_amount_positive'),
     )
+
+class InvoiceCounter(Base):
+    __tablename__ = 'invoice_counters'
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), primary_key=True
+    )
+    last_number: Mapped[int] = mapped_column(default=0)

@@ -1,16 +1,30 @@
 import decimal
-from datetime import datetime
+from datetime import date
 from typing import Sequence
 
 from sqlalchemy import Select, and_, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from backend.app.models.dashboard import OverdueInvoice
-from backend.app.models.database_models import Client, Deal, Invoice
+from backend.app.models.database_models import Client, Deal, Invoice, InvoiceCounter
 from backend.app.models.utils import get_datetime_utc
 from backend.app.schemas.invoice import InvoiceUpdate
 
+
+async def _next_invoice_number(session: AsyncSession, user_id: str) -> int:
+    stmt = (
+        pg_insert(InvoiceCounter)
+        .values(user_id=user_id, last_number=1)
+        .on_conflict_do_update(
+            index_elements=[InvoiceCounter.user_id],
+            set_={'last_number': InvoiceCounter.last_number + 1},
+        )
+        .returning(InvoiceCounter.last_number)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one()
 
 async def create_invoice(
     is_paid: bool,
@@ -20,16 +34,18 @@ async def create_invoice(
     client_id: str,
     amount: decimal.Decimal,
     session: AsyncSession,
-    due_date: datetime | None,
+    due_date: date | None,
 ) -> Invoice:
+    next_number = await _next_invoice_number(session, user_id)
     new_invoice = Invoice(
         label=label,
+        number=f"INV_{next_number}",
         user_id=user_id,
         is_paid=is_paid,
         deal_id=deal_id,
         client_id=client_id,
         amount=amount,
-        due_date=due_date,
+        due_date= due_date if due_date is not None else date.today()
     )
     session.add(new_invoice)
     await session.commit()
@@ -103,13 +119,13 @@ async def _get_filtered_invoices_stmt(
 ) -> Select:
     stmt = select(Invoice).where(Invoice.user_id == user_id)
 
-    if q is not None:
+    if q:
         stmt = stmt.where(Invoice.label.ilike(f'%{q}%'))
 
-    if is_paid is not None:
+    if is_paid:
         stmt = stmt.where(Invoice.is_paid == is_paid)
 
-    if is_back is not None or not is_back:
+    if is_back:
         stmt = stmt.where(Invoice.due_date < get_datetime_utc())
 
     return stmt

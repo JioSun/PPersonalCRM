@@ -12,7 +12,7 @@ class InvoiceFields(BaseModel):
     )
     currency: Currency = Currency.USD
     status: InvoiceStatus = InvoiceStatus.DRAFT
-    due_date: datetime | None = None
+    due_date: date
     is_paid: bool = False
 
 

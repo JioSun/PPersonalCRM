@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ClientSummary(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     client_id: str = Field(validation_alias='id')
     client_name: str = Field(validation_alias='client_name')
@@ -13,7 +13,7 @@ class ClientSummary(BaseModel):
 
 
 class OverdueInvoice(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     invoice_id: str = Field(validation_alias='id')
     deal_id: str = Field(validation_alias='deal_id')
