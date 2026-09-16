@@ -22,7 +22,6 @@ class InvoiceBase(InvoiceFields):
 
 class InvoiceCreate(InvoiceBase):
     label: str
-    client_id: str
     deal_id: str | None = None
 
 
@@ -37,7 +36,7 @@ class InvoiceRead(InvoiceFields):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    client_id: str
+    client_id: str | None = None
     deal_id: str | None
     number: str
     paid_at: datetime | None

@@ -42,14 +42,13 @@ async def get_deals(
 @router.post('', status_code=status.HTTP_201_CREATED, response_model=DealRead)
 async def create_new_deal(
     deal_in: DealCreate,
-    client_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_db),
     conn: Redis = Depends(get_redis),
 ) -> DealRead:
 
     client_existing = await get_client_by_id(
-        client_id=client_id, user_id=current_user.id, session=session
+        client_id=deal_in.client_id, user_id=current_user.id, session=session
     )
     if not client_existing:
         raise HTTPException(
@@ -61,7 +60,7 @@ async def create_new_deal(
         amount=deal_in.amount,
         deadline=deal_in.deadline,
         user_id=current_user.id,
-        client_id=client_id,
+        client_id=deal_in.client_id,
         session=session,
     )
     await conn.delete(f'dashboard:{current_user.id}')
