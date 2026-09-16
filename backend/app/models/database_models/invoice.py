@@ -14,8 +14,9 @@ if TYPE_CHECKING:
     from backend.app.models.database_models.deal import Deal
     from backend.app.models.database_models.user import User
 
+
 class Invoice(Base, IdMixin, TimestampMixin):
-    __tablename__ = "invoices"
+    __tablename__ = 'invoices'
 
     label: Mapped[str] = mapped_column(String(50))
     number: Mapped[str] = mapped_column(default=generate_invoice_number)
@@ -26,28 +27,21 @@ class Invoice(Base, IdMixin, TimestampMixin):
     paid_at: Mapped[datetime | None] = mapped_column()
     is_paid: Mapped[bool] = mapped_column(default=False)
 
-    user_id: Mapped[str] = mapped_column(ForeignKey(
-        "users.id", ondelete='CASCADE'),
-        index=True
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
     )
-    deal_id: Mapped[str | None] = mapped_column(ForeignKey(
-        "deals.id", ondelete='CASCADE'), index=True,
-        nullable=True
+    deal_id: Mapped[str | None] = mapped_column(
+        ForeignKey('deals.id', ondelete='CASCADE'), index=True, nullable=True
     )
     client_id: Mapped[str] = mapped_column(
-        ForeignKey("clients.id", ondelete='CASCADE'),
-        index=True
+        ForeignKey('clients.id', ondelete='CASCADE'), index=True
     )
 
-    deal: Mapped["Deal | None"] = relationship(back_populates="invoices", lazy="raise")
-    client: Mapped["Client"] = relationship(back_populates="invoices", lazy="raise")
-    user: Mapped["User"] = relationship(back_populates="invoices", lazy="raise")
+    deal: Mapped['Deal | None'] = relationship(back_populates='invoices', lazy='raise')
+    client: Mapped['Client'] = relationship(back_populates='invoices', lazy='raise')
+    user: Mapped['User'] = relationship(back_populates='invoices', lazy='raise')
 
     __table_args__ = (
-            UniqueConstraint("user_id", "number"),
-            CheckConstraint("amount >= 0", name="ck_invoices_amount_positive")
+        UniqueConstraint('user_id', 'number'),
+        CheckConstraint('amount >= 0', name='ck_invoices_amount_positive'),
     )
-
-
-
-

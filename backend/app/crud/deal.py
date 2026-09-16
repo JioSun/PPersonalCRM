@@ -13,7 +13,7 @@ from backend.app.schemas.deal import DealUpdate
 
 async def create_deal(
     name: str,
-    amount: Decimal,
+    amount: Decimal | None,
     user_id: str,
     client_id: str,
     deadline: datetime | None,
@@ -39,8 +39,7 @@ async def get_deals_by_user_id(user_id: str, session: AsyncSession) -> Sequence[
 
 
 async def get_deals_by_client_name(
-        client_name: str,
-        session: AsyncSession
+    client_name: str, session: AsyncSession
 ) -> Sequence[Deal]:
     stmt = (
         select(Deal)
@@ -58,7 +57,7 @@ async def get_deals_by_query(
     stmt = (
         select(Deal)
         .where(Deal.user_id == user_id)
-        .where(Deal.name.ilike(f"%{q}%"))
+        .where(Deal.name.ilike(f'%{q}%'))
         .limit(limit)
         .offset(offset)
     )
@@ -67,18 +66,18 @@ async def get_deals_by_query(
 
 
 async def get_deal_by_id(
-        deal_id: str,
-        user_id: str,
-        session: AsyncSession
+    deal_id: str, user_id: str, session: AsyncSession
 ) -> Deal | None:
     stmt = select(Deal).where(Deal.id == deal_id, Deal.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
+
 async def get_deal_by_name(name: str, session: AsyncSession) -> Deal | None:
     stmt = select(Deal).where(Deal.name == name)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
 
 async def update_deal_by_id(
     deal_id: str, user_id: str, deal_in: DealUpdate, session: AsyncSession
@@ -100,9 +99,7 @@ async def update_deal_by_id(
 
 
 async def get_deals_by_client_id(
-        client_id: str,
-        user_id: str,
-        session: AsyncSession
+    client_id: str, user_id: str, session: AsyncSession
 ) -> list[dict[str, Any]]:
     stmt = (
         select(Deal.id, Deal.name, Deal.amount, Deal.deadline)

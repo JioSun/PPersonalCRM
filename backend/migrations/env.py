@@ -2,7 +2,7 @@ import asyncio
 import sys
 from logging.config import fileConfig
 
-if sys.platform == "win32":
+if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from alembic import context
@@ -44,7 +44,10 @@ def get_url():
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
-    This configures the context with just a URL    and not an Engine, though an Engine is acceptable    here as well.  By skipping the Engine creation    we don't even need a DBAPI to be available.
+    This configures the context with just a URL
+     and not an Engine, though an Engine is acceptable
+        here as well.  By skipping the Engine creation
+        we don't even need a DBAPI to be available.
     Calls to context.execute() here emit the given string to the    script output.
     """
     url = get_url()
@@ -52,7 +55,7 @@ def run_migrations_offline() -> None:
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+        dialect_opts={'paramstyle': 'named'},
     )
 
     with context.begin_transaction():
@@ -68,10 +71,10 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
+    configuration['sqlalchemy.url'] = get_url()
     connectable = async_engine_from_config(
         configuration,
-        prefix="sqlalchemy.",
+        prefix='sqlalchemy.',
         poolclass=pool.NullPool,
     )
 

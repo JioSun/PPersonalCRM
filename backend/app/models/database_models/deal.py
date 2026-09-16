@@ -14,14 +14,13 @@ if TYPE_CHECKING:
     from backend.app.models.database_models.user import User
 
 
-
 class Deal(Base, IdMixin, TimestampMixin):
-    __tablename__ = "deals"
+    __tablename__ = 'deals'
 
-    version: Mapped[int] = mapped_column(server_default=text("1"))
+    version: Mapped[int] = mapped_column(server_default=text('1'))
 
     name: Mapped[str] = mapped_column(index=True)
-    amount: Mapped[Decimal] = mapped_column(default=Decimal("0.00"))
+    amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
     status: Mapped[DealStatus] = mapped_column(default=DealStatus.NEW)
     currency: Mapped[Currency] = mapped_column(default=Currency.USD)
     deadline: Mapped[datetime | None] = mapped_column(index=True)
@@ -29,30 +28,24 @@ class Deal(Base, IdMixin, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text)
 
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete='CASCADE'),
-        index=True
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
     )
     client_id: Mapped[str] = mapped_column(
-        ForeignKey("clients.id", ondelete='CASCADE'),
-        index=True
+        ForeignKey('clients.id', ondelete='CASCADE'), index=True
     )
 
-    user: Mapped["User"] = relationship(back_populates="deals", lazy="raise")
-    client: Mapped["Client"] = relationship(back_populates="deals", lazy="raise")
-    invoices: Mapped[list["Invoice"]] = relationship(
-        back_populates="deal",
+    user: Mapped['User'] = relationship(back_populates='deals', lazy='raise')
+    client: Mapped['Client'] = relationship(back_populates='deals', lazy='raise')
+    invoices: Mapped[list['Invoice']] = relationship(
+        back_populates='deal',
         passive_deletes=True,
-        cascade="all, delete-orphan",
-        lazy="raise"
+        cascade='all, delete-orphan',
+        lazy='raise',
     )
 
     __table_args__ = (
-        CheckConstraint("amount >= 0",  name="ck_deals_amount_positive"),
-        Index("idx_client_id__and__status", "client_id", 'status'),
+        CheckConstraint('amount >= 0', name='ck_deals_amount_positive'),
+        Index('idx_client_id__and__status', 'client_id', 'status'),
     )
 
-    __mapper_args__ = {"version_id_col": version}
-
-
-
-
+    __mapper_args__ = {'version_id_col': version}
