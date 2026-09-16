@@ -3,7 +3,7 @@ import os
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from typing_extensions import AsyncGenerator
 
 from backend.app.core.db import get_db
@@ -17,7 +17,6 @@ from alembic.config import Config
 from redis import asyncio as redis
 
 from backend.app.core.config import settings
-
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

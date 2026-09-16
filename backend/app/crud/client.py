@@ -1,4 +1,3 @@
-from typing import Any
 
 from mypy.nodes import Sequence
 from sqlalchemy import func, select

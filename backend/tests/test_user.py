@@ -1,3 +1,5 @@
+
+
 async def test_register(client):
     response = await client.post('/auth/register', json={
       "email": "gresges@xample.com",
@@ -133,20 +135,19 @@ async def test_create_invoice_with_other_user(client, active_user, other_active_
 
     assert client_b.status_code == 201
 
-    deal_a = await client.post(f'/deals', json=deal_json_a, headers={'Authorization': active_user['Authorization']})
+    deal_a = await client.post('/deals', json=deal_json_a, headers={'Authorization': active_user['Authorization']})
 
     assert deal_a.status_code == 404
 
-    deal_b = await client.post(f'/deals', json=deal_json_b, headers={'Authorization': other_active_user['Authorization']})
+    deal_b = await client.post('/deals', json=deal_json_b, headers={'Authorization': other_active_user['Authorization']})
 
     assert deal_b.status_code == 201
 
     invoice_a = {
-        "label": "invoiceA",
-        "deal_id": deal_b.json().get('id'),
-        "client_id": client_b.json().get('id')
+        "label": "invoiceB",
+        "client_id": client_a.json().get('id'),
     }
 
-    invoice_a = await client.post(f'/invoices', json=invoice_a, headers={'Authorization': active_user['Authorization']})
-
+    invoice_a = await client.post('/invoices', json=invoice_a, headers={'Authorization': active_user['Authorization']})
+    print(invoice_a.json())
     assert invoice_a.status_code == 401

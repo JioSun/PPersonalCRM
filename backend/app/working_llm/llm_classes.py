@@ -1,7 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
-from backend.app.models.constants import Currency
+
 from pydantic import BaseModel
+
+from backend.app.models.constants import Currency
+
 
 class ExtractedDealInfo(BaseModel):
     name: str

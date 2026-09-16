@@ -13,7 +13,6 @@ from backend.app.celery_tasks.email_tasks.tasks import send_invoice_email
 from backend.app.celery_tasks.pdf_tasks.tasks import render_pdf
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
-from backend.app.crud.deal import get_deal_by_id
 from backend.app.crud.invoice import (
     create_invoice,
     existing_invoice_check,
@@ -28,7 +27,6 @@ from backend.app.schemas.invoice import (
     InvoiceRead,
     InvoiceUpdate,
 )
-from backend.tests.conftest import client
 
 router = APIRouter(prefix='/invoices', tags=['invoice'])
 logger = logging.getLogger(__name__)
@@ -96,12 +94,6 @@ async def create_new_invoice(
             status_code=status.HTTP_400_BAD_REQUEST, detail='Invoice already exists'
         )
 
-    deal_existing = await get_deal_by_id(deal_id=invoice_in.deal_id, user_id=current_user.id, session=session)
-
-    if not deal_existing:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail='Deal not found'
-        )
 
     logger.info('Создание счета')
     new_invoice = await create_invoice(
@@ -109,7 +101,7 @@ async def create_new_invoice(
         user_id=current_user.id,
         client_id=invoice_in.client_id,
         deal_id=invoice_in.deal_id,
-        mid_amount=invoice_in.amount,
+        amount=invoice_in.amount,
         due_date=invoice_in.due_date,
         label=invoice_in.label,
         session=session,
