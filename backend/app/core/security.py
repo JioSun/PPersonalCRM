@@ -19,29 +19,29 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return passwordHash.verify(password, hashed_password)
 
 
-_DUMMY_HASH = get_password_hash("dummy_password_for_timing_safety")
+_DUMMY_HASH = get_password_hash('dummy_password_for_timing_safety')
 
 
 def create_token(subject: str, expires_delta: timedelta, token_type: str) -> str:
     now = datetime.now(timezone.utc)
     payload = {
-        "sub": subject,
-        "iat": now,
-        "exp": now + expires_delta,
-        "type": token_type,
+        'sub': subject,
+        'iat': now,
+        'exp': now + expires_delta,
+        'type': token_type,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def create_access_token(username: str) -> str:
     return create_token(
-        username, timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), "access"
+        username, timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), 'access'
     )
 
 
 def create_refresh_token(username: str) -> str:
     return create_token(
-        username, timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS), "refresh"
+        username, timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS), 'refresh'
     )
 
 
@@ -49,7 +49,9 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
 
-async def authenticate_user(session: AsyncSession, email: str, password: str) -> User | None:
+async def authenticate_user(
+    session: AsyncSession, email: str, password: str
+) -> User | None:
     stmt = select(User).where(User.email == email)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()

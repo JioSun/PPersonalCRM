@@ -22,25 +22,25 @@ class Base(DeclarativeBase):
         datetime: DateTime(timezone=True),
         ClientStatus: Enum(
             ClientStatus,
-            name="client_status",
-            values_callable=lambda x: [e.value for e in x]
+            name='client_status',
+            values_callable=lambda x: [e.value for e in x],
         ),
         InvoiceStatus: Enum(
             InvoiceStatus,
-            name="invoice_status",
-            values_callable=lambda x: [e.value for e in x]
+            name='invoice_status',
+            values_callable=lambda x: [e.value for e in x],
         ),
         DealStatus: Enum(
             DealStatus,
-            name="deal_status",
-            values_callable=lambda x: [e.value for e in x]
+            name='deal_status',
+            values_callable=lambda x: [e.value for e in x],
         ),
     }
 
     @declared_attr.directive
     def __tablename__(cls) -> str:
-        name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__name__).lower()
-        return f"{name}s" if not name.endswith("s") else name
+        name = re.sub(r'(?<!^)(?=[A-Z])', '_', cls.__name__).lower()
+        return f'{name}s' if not name.endswith('s') else name
 
 
 class TimestampMixin:
@@ -51,7 +51,6 @@ class TimestampMixin:
         server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+
 class IdMixin:
-    id: Mapped[str] = mapped_column(
-        String(26), default=generate_ulid, primary_key=True
-    )
+    id: Mapped[str] = mapped_column(String(26), default=generate_ulid, primary_key=True)

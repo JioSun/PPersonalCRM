@@ -4,6 +4,7 @@ from mypy.nodes import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.models.dashboard import ClientSummary
 from backend.app.models.database_models.client import Client
 from backend.app.models.database_models.deal import Deal
 from backend.app.schemas.client import ClientUpdate
@@ -26,7 +27,9 @@ async def create_client(
     return new_client
 
 
-async def get_clients_by_user_id(user_id: str, session: AsyncSession) -> Sequence[Client]:
+async def get_clients_by_user_id(
+    user_id: str, session: AsyncSession
+) -> Sequence[Client]:
     stmt = select(Client).where(Client.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -38,7 +41,7 @@ async def get_clients_by_query(
     stmt = (
         select(Client)
         .where(Client.user_id == user_id)
-        .where(Client.client_name.ilike(f"%{q}%"))
+        .where(Client.client_name.ilike(f'%{q}%'))
         .limit(limit)
         .offset(offset)
     )
@@ -53,12 +56,16 @@ async def get_client_by_id(
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
+
 async def get_client_by_client_name(
-        client_name: str, user_id: str, session: AsyncSession
+    client_name: str, user_id: str, session: AsyncSession
 ) -> Client | None:
-    stmt = select(Client).where(Client.client_name == client_name, Client.user_id == user_id)
+    stmt = select(Client).where(
+        Client.client_name == client_name, Client.user_id == user_id
+    )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
 
 async def update_client_by_id(
     client_id: str, user_id: str, client_in: ClientUpdate, session: AsyncSession
@@ -82,13 +89,15 @@ async def update_client_by_id(
     return db_client
 
 
-async def get_clients_sum(user_id: str, session: AsyncSession) -> list[dict[str, Any]]:
+async def get_clients_sum(user_id: str, session: AsyncSession) -> list[ClientSummary]:
     stmt = (
-        select(Client.id, Client.client_name, func.sum(Deal.amount).label("total_spent"))
+        select(
+            Client.id, Client.client_name, func.sum(Deal.amount).label('total_spent')
+        )
         .where(Client.user_id == user_id)
         .join(Deal, Deal.client_id == Client.id)
         .group_by(Client.id)
     )
 
     result = await session.execute(stmt)
-    return [dict(row) for row in result.mappings().all()]
+    return [ClientSummary.model_validate(row) for row in result.all()]

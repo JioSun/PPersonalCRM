@@ -1,5 +1,5 @@
 <div class="item-block">
-    <div class="item-row"><span class="key">Название</span><span class="value">{name}</span></div>
+    <div class="item-row"><span class="key">Название</span><span class="value">{label}</span></div>
     <div class="item-row"><span class="key">Имя клиента</span><span class="value">{client_name}</span></div>
     <div class="item-row"><span class="key">Название сделки</span><span class="value">{deal_name}</span></div>
     <div class="item-row"><span class="key">Сумма чека</span><span class="value">{mid_amount}</span></div>

@@ -8,15 +8,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env", env_ignore_empty=True, extra="ignore"
+        env_file=BASE_DIR / '.env', env_ignore_empty=True, extra='ignore'
     )
 
     # POSTGRES
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
-    POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = ""
+    POSTGRES_PASSWORD: str = ''
+    POSTGRES_DB: str = ''
 
     # BACKEND
     SECRET_KEY: str
@@ -39,12 +39,12 @@ class Settings(BaseSettings):
     # GEMINI
     GEMINI_API_KEY: str
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return str(
             PostgresDsn.build(
-                scheme="postgresql+asyncpg",
+                scheme='postgresql+asyncpg',
                 username=self.POSTGRES_USER,
                 password=self.POSTGRES_PASSWORD,
                 host=self.POSTGRES_SERVER,
@@ -54,4 +54,4 @@ class Settings(BaseSettings):
         )
 
 
-settings = Settings() # type: ignore[call-arg]
+settings = Settings()  # type: ignore[call-arg]

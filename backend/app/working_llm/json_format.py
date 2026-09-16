@@ -19,16 +19,17 @@ def is_rate_limit_error(exception):
     wait=wait_exponential(multiplier=1, min=1, max=10),
     stop=stop_after_attempt(3),
 )
-async def note_formatter(note_text: str, deal_names: str):
+async def note_formatter(note_text: str, deal_names: str) -> ExtractedDealInfo | None:
     final_prompt = SYSTEM_PROMPT.format(note_text=note_text, deal_names=deal_names)
     interaction = await client.aio.interactions.create(
-        model="gemini-3.6-flash",
+        model='gemini-3.6-flash',
         input=final_prompt,
         response_format={
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": ExtractedDealInfo.model_json_schema(),
+            'type': 'text',
+            'mime_type': 'application/json',
+            'schema': ExtractedDealInfo.model_json_schema(),
         },
     )
-
-    return ExtractedDealInfo.model_validate_json(interaction.output_text)
+    if interaction.output_text is not None:
+        return ExtractedDealInfo.model_validate_json(interaction.output_text)
+    return None

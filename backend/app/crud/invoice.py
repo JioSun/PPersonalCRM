@@ -6,6 +6,7 @@ from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from backend.app.models.dashboard import OverdueInvoice
 from backend.app.models.database_models import Client, Deal, Invoice
 from backend.app.models.utils import get_datetime_utc
 from backend.app.schemas.invoice import InvoiceUpdate
@@ -34,7 +35,9 @@ async def create_invoice(
     return new_invoice
 
 
-async def get_invoices_by_user_id(session: AsyncSession, user_id: str) -> Sequence[Invoice]:
+async def get_invoices_by_user_id(
+    session: AsyncSession, user_id: str
+) -> Sequence[Invoice]:
     stmt = select(Invoice).where(Invoice.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -91,12 +94,15 @@ async def update_invoice_by_id(
 
 
 async def _get_filtered_invoices_stmt(
-    user_id: str, q: str | None, is_paid: bool | None = None, is_back: bool | None = None
+    user_id: str,
+    q: str | None,
+    is_paid: bool | None = None,
+    is_back: bool | None = None,
 ) -> Select:
     stmt = select(Invoice).where(Invoice.user_id == user_id)
 
     if q is not None:
-        stmt = stmt.where(Invoice.label.ilike(f"%{q}%"))
+        stmt = stmt.where(Invoice.label.ilike(f'%{q}%'))
 
     if is_paid is not None:
         stmt = stmt.where(Invoice.is_paid == is_paid)
@@ -110,24 +116,20 @@ async def _get_filtered_invoices_stmt(
 async def get_invoices_list(
     session: AsyncSession,
     user_id: str,
-    q: str,
+    q: str | None = None,
     offset: int | None = None,
     limit: int | None = None,
     is_paid: bool | None = None,
     is_back: bool | None = None,
-) -> Sequence[Invoice] | None:
+) -> list[OverdueInvoice]:
     stmt = await _get_filtered_invoices_stmt(
-        user_id=user_id,
-        q=q,
-        is_paid=is_paid,
-        is_back=is_back
+        user_id=user_id, q=q, is_paid=is_paid, is_back=is_back
     )
     if not limit:
         stmt = stmt
     stmt = stmt.offset(offset).limit(limit)
     result = await session.scalars(stmt)
-    invoices = result.all()
-    return invoices if len(invoices) > 0 else None
+    return [OverdueInvoice.model_validate(row) for row in result.all()]
 
 
 async def get_invoices_sum(
@@ -138,17 +140,16 @@ async def get_invoices_sum(
     is_back: bool | None = None,
 ) -> decimal.Decimal:
     stmt = await _get_filtered_invoices_stmt(
-        user_id=user_id,
-        q=q,
-        is_paid=is_paid,
-        is_back=is_back
+        user_id=user_id, q=q, is_paid=is_paid, is_back=is_back
     )
     stmt = stmt.with_only_columns(func.coalesce(func.sum(Invoice.amount), 0))
     result = await session.scalar(stmt)
     return result
 
 
-async def get_invoice_with_client(invoice_id: str, session: AsyncSession) -> Invoice | None:
+async def get_invoice_with_client(
+    invoice_id: str, session: AsyncSession
+) -> Invoice | None:
     stmt = (
         select(Invoice)
         .options(joinedload(Invoice.deal).joinedload(Deal.client))

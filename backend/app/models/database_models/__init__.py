@@ -4,4 +4,4 @@ from backend.app.models.database_models.deal import Deal
 from backend.app.models.database_models.invoice import Invoice
 from backend.app.models.database_models.user import User
 
-__all__ = ["Base", "User", "Client", "Deal", "Invoice"]
+__all__ = ['Base', 'User', 'Client', 'Deal', 'Invoice']

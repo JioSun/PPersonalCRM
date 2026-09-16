@@ -9,7 +9,7 @@ from backend.app.models.constants import ClientStatus
 
 
 class ClientValidators:
-    @field_validator("phone")
+    @field_validator('phone')
     @classmethod
     def validate_phone_number(cls, v: str | None) -> str | None:
         if v is None:
@@ -17,34 +17,35 @@ class ClientValidators:
         try:
             parsed = phonenumbers.parse(v, None)
         except phonenumbers.NumberParseException:
-            raise ValueError("Invalid phone number")
+            raise ValueError('Invalid phone number')
         if not phonenumbers.is_valid_number(parsed):
-            raise ValueError("Invalid phone number")
+            raise ValueError('Invalid phone number')
         return v
 
-    @field_validator("telegram")
+    @field_validator('telegram')
     @classmethod
     def validate_telegram(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        v = v.lstrip("@")
-        if not re.match(r"^[a-zA-Z0-9_]{5,32}$", v):
-            raise ValueError("Invalid Telegram username")
+        v = v.lstrip('@')
+        if not re.match(r'^[a-zA-Z0-9_]{5,32}$', v):
+            raise ValueError('Invalid Telegram username')
         return v
 
-    @field_validator("timezone")
+    @field_validator('timezone')
     @classmethod
     def validate_timezone(cls, v: str | None) -> str | None:
         if v is None:
             return v
         if v not in available_timezones():
-            raise ValueError(f"Unknown timezone: {v}")
+            raise ValueError(f'Unknown timezone: {v}')
         return v
 
-    @field_validator("email", mode="before")
+    @field_validator('email', mode='before')
     @classmethod
     def validate_email(cls, v: str | None) -> str | None:
         return v.strip().lower() if v is not None else v
+
 
 class ClientFields(BaseModel):
     client_name: str = Field(min_length=3, max_length=50)
@@ -57,8 +58,10 @@ class ClientFields(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
     timezone: str | None = None
 
+
 class ClientBase(ClientValidators, ClientFields):
     pass
+
 
 class ClientCreate(ClientBase):
     pass
@@ -73,7 +76,6 @@ class ClientUpdate(ClientValidators, BaseModel):
     client_status: ClientStatus | None = None
     notes: str | None = None
     timezone: str | None = None
-
 
 
 class ClientRead(ClientFields):

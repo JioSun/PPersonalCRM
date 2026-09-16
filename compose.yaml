@@ -1,5 +1,8 @@
 services:
   backend:
+    environment:
+      POSTGRES_SERVER: postgres
+      REDIS_HOST: redis
     build: .
     env_file:
       - .env

@@ -1,12 +1,23 @@
 import logging
+import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter(tags=["dashboards"])
+from backend.app.api.dependencies import get_current_active_user
+from backend.app.core.db import get_db
+from backend.app.core.redis_py import get_redis
+from backend.app.crud.client import get_clients_sum
+from backend.app.crud.invoice import get_invoices_list
+from backend.app.models.dashboard import DashboardResponse, OverdueInvoice
+from backend.app.models.database_models import User
+
+router = APIRouter(tags=['dashboards'])
 logger = logging.getLogger(__name__)
 
-'''
-@router.get("/dashboard", response_model=DashboardResponce)
+
+@router.get("/dashboard", response_model=DashboardResponse)
 async def dashboard(
     session: AsyncSession =Depends(get_db),
     conn: Redis =Depends(get_redis),
@@ -19,7 +30,7 @@ async def dashboard(
         elapsed = time.perf_counter() - start
         logger.info(f"GET: {get_result}")
         logger.info(f"CACHE HIT: {elapsed * 1000:.2f}ms")
-        return DashboardResponce.model_validate_json(get_result)
+        return DashboardResponse.model_validate_json(get_result)
 
     clients_sum = await get_clients_sum(session=session, user_id=current_user.id)
     overdue = await get_invoices_list(
@@ -28,10 +39,12 @@ async def dashboard(
         session=session
     )
 
-    data = DashboardResponce(clients_summary=clients_sum, overdue_invoice=overdue)
+    data = DashboardResponse(
+        clients_summary=clients_sum,
+        overdue_invoice=overdue,)
 
     await conn.set(f"dashboard:{current_user.id}", data.model_dump_json(), ex=60)
     elapsed = time.perf_counter() - start
     logger.info(f"CACHE HIT: {elapsed * 1000:.2f}ms")
     return data
-'''
+

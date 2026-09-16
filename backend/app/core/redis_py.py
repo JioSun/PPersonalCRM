@@ -5,7 +5,7 @@ from redis import asyncio as redis
 from backend.app.core.config import settings
 
 redis_pool = redis.ConnectionPool.from_url(
-    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
+    f'redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}',
     decode_responses=True,
 )
 

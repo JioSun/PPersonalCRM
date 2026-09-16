@@ -9,13 +9,11 @@ from backend.app.models.constants import Currency, DealStatus
 class DealValidation:
     pass
 
+
 class DealFields(BaseModel):
     name: str = Field(min_length=3, max_length=50)
     amount: Decimal = Field(
-        default=Decimal("0.00"),
-        max_digits=12,
-        decimal_places=2,
-        ge=0
+        default=Decimal('0.00'), max_digits=12, decimal_places=2, ge=0
     )
     status: DealStatus = DealStatus.NEW
     currency: Currency = Currency.USD
@@ -23,11 +21,14 @@ class DealFields(BaseModel):
     closed_at: datetime | None = Field(default=None)
     notes: str | None = Field(default=None, max_length=5000)
 
+
 class DealBase(DealValidation, DealFields):
     pass
 
+
 class DealCreate(DealBase):
     pass
+
 
 class DealUpdate(BaseModel):
     name: str | None = None
@@ -44,4 +45,3 @@ class DealRead(DealFields):
     id: str
     created_at: datetime
     updated_at: datetime
-

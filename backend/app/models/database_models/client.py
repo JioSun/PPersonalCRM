@@ -18,8 +18,9 @@ if TYPE_CHECKING:
     from backend.app.models.database_models.invoice import Invoice
     from backend.app.models.database_models.user import User
 
+
 class Client(Base, IdMixin, TimestampMixin):
-    __tablename__ = "clients"
+    __tablename__ = 'clients'
 
     client_name: Mapped[str] = mapped_column(String(50), index=True)
     organization: Mapped[str | None] = mapped_column(String(50), index=True)
@@ -32,30 +33,23 @@ class Client(Base, IdMixin, TimestampMixin):
     client_status: Mapped[ClientStatus] = mapped_column(default=ClientStatus.LEAD)
     notes: Mapped[str | None] = mapped_column(Text)
 
-    timezone: Mapped[str | None] = mapped_column(String(32), default="UTC")
+    timezone: Mapped[str | None] = mapped_column(String(32), default='UTC')
 
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
     )
 
-    user: Mapped["User"] = relationship(
-        back_populates="clients",
-        passive_deletes=True,
-        lazy="raise"
+    user: Mapped['User'] = relationship(
+        back_populates='clients', passive_deletes=True, lazy='raise'
     )
-    deals: Mapped[list["Deal"]] = relationship(
-        back_populates="client",
-        cascade="all, delete-orphan",
+    deals: Mapped[list['Deal']] = relationship(
+        back_populates='client',
+        cascade='all, delete-orphan',
         passive_deletes=True,
-        lazy="raise"
+        lazy='raise',
     )
-    invoices: Mapped[list["Invoice"]] = relationship(
-        back_populates="client",
-        passive_deletes=True,
-        lazy="raise"
+    invoices: Mapped[list['Invoice']] = relationship(
+        back_populates='client', passive_deletes=True, lazy='raise'
     )
 
-    __table_args__ = (
-        Index("ix_name_lower_title", text("lower(client_name)")),
-    )
+    __table_args__ = (Index('ix_name_lower_title', text('lower(client_name)')),)
