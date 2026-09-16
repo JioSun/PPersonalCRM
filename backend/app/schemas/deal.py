@@ -20,7 +20,7 @@ class DealFields(BaseModel):
     deadline: datetime | None = None
     closed_at: datetime | None = Field(default=None)
     notes: str | None = Field(default=None, max_length=5000)
-
+    client_id: str
 
 class DealBase(DealValidation, DealFields):
     pass

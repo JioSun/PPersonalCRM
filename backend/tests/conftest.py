@@ -24,20 +24,16 @@ from backend.app.core.config import settings
 def apply_migrations():
     command.upgrade(Config("alembic.ini"), "head")
 
-@pytest_asyncio.fixture()
-async def async_engine():
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def session_pool():
     TEST_DATABASE_URL = settings.SQLALCHEMY_DATABASE_URI
 
     engine = create_async_engine(TEST_DATABASE_URL)
-    return engine
-
-@pytest_asyncio.fixture
-async def session_pool(async_engine):
-    return async_sessionmaker(async_engine)
+    session_pool = async_sessionmaker(engine, expire_on_commit=False)
+    return session_pool
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    session_pool = async_sessionmaker(async_engine,  expire_on_commit=False)
+async def async_session(session_pool) -> AsyncGenerator[AsyncSession, None]:
     async with session_pool() as session:
         try:
             yield session
