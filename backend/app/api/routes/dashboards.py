@@ -10,7 +10,7 @@ from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
 from backend.app.crud.client import get_clients_sum
 from backend.app.crud.invoice import get_invoices_list
-from backend.app.models.dashboard import DashboardResponse, OverdueInvoice
+from backend.app.models.dashboard import DashboardResponse
 from backend.app.models.database_models import User
 
 router = APIRouter(tags=['dashboards'])

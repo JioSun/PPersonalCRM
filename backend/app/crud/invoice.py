@@ -15,9 +15,10 @@ from backend.app.schemas.invoice import InvoiceUpdate
 async def create_invoice(
     is_paid: bool,
     label: str,
-    deal_id: str,
+    deal_id: str | None,
     user_id: str,
-    mid_amount: decimal.Decimal,
+    client_id: str,
+    amount: decimal.Decimal,
     session: AsyncSession,
     due_date: datetime | None,
 ) -> Invoice:
@@ -26,7 +27,8 @@ async def create_invoice(
         user_id=user_id,
         is_paid=is_paid,
         deal_id=deal_id,
-        mid_amount=mid_amount,
+        client_id=client_id,
+        amount=amount,
         due_date=due_date,
     )
     session.add(new_invoice)
