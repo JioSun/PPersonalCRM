@@ -39,7 +39,7 @@ async def get_deals(
     return list(DealRead.model_validate(obj) for obj in deals)
 
 
-@router.post('/{client_id}', status_code=status.HTTP_201_CREATED, response_model=DealRead)
+@router.post('', status_code=status.HTTP_201_CREATED, response_model=DealRead)
 async def create_new_deal(
     deal_in: DealCreate,
     client_id: str,

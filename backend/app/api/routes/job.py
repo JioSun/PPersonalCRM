@@ -19,7 +19,7 @@ async def get_job(
     current_user: User = Depends(get_current_active_user),
     conn: Redis = Depends(get_redis),
 ) -> dict[str, str]:
-    truly_user_id = conn.get(f'job_owner:{job_id}')
+    truly_user_id = await conn.get(f'job_owner:{job_id}')
     if not truly_user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Job not found'

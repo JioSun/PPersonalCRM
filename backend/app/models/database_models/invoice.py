@@ -23,7 +23,7 @@ class Invoice(Base, IdMixin, TimestampMixin):
     amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
     currency: Mapped[Currency] = mapped_column(default=Currency.USD)
     status: Mapped[InvoiceStatus] = mapped_column(default=InvoiceStatus.DRAFT)
-    due_date: Mapped[date] = mapped_column(default=date.today())
+    due_date: Mapped[date] = mapped_column(default=date.today)
     paid_at: Mapped[datetime | None] = mapped_column()
     is_paid: Mapped[bool] = mapped_column(default=False)
 

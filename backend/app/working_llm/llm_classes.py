@@ -1,15 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
-
+from backend.app.models.constants import Currency
 from pydantic import BaseModel
-
-
-class Currency(str, Enum):
-    USD = 'USD'
-    EUR = 'EUR'
-    RUB = 'RUB'
-
 
 class ExtractedDealInfo(BaseModel):
     name: str
