@@ -28,6 +28,7 @@ from backend.app.schemas.invoice import (
     InvoiceRead,
     InvoiceUpdate,
 )
+from backend.tests.conftest import client
 
 router = APIRouter(prefix='/invoices', tags=['invoice'])
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ async def create_new_invoice(
             status_code=status.HTTP_400_BAD_REQUEST, detail='Invoice already exists'
         )
 
-    deal_existing = await get_deal_by_id(deal_id=invoice_in.deal_id, user_id=current_user, session=session)
+    deal_existing = await get_deal_by_id(deal_id=invoice_in.deal_id, user_id=current_user.id, session=session)
 
     if not deal_existing:
         raise HTTPException(
@@ -106,6 +107,7 @@ async def create_new_invoice(
     new_invoice = await create_invoice(
         is_paid=invoice_in.is_paid if hasattr(invoice_in, 'is_paid') else False,
         user_id=current_user.id,
+        client_id=invoice_in.client_id,
         deal_id=invoice_in.deal_id,
         mid_amount=invoice_in.amount,
         due_date=invoice_in.due_date,
