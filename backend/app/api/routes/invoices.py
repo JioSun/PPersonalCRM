@@ -80,7 +80,6 @@ async def get_invoices(
 @router.post('', status_code=status.HTTP_201_CREATED, response_model=InvoiceRead)
 async def create_new_invoice(
     invoice_in: InvoiceCreate,
-    deal_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_db),
     conn: Redis = Depends(get_redis),
@@ -96,7 +95,7 @@ async def create_new_invoice(
             status_code=status.HTTP_400_BAD_REQUEST, detail='Invoice already exists'
         )
 
-    deal_existing = await get_deal_by_id(deal_id=deal_id, user_id=current_user, session=session)
+    deal_existing = await get_deal_by_id(deal_id=invoice_in.deal_id, user_id=current_user, session=session)
 
     if not deal_existing:
         raise HTTPException(
@@ -107,7 +106,7 @@ async def create_new_invoice(
     new_invoice = await create_invoice(
         is_paid=invoice_in.is_paid if hasattr(invoice_in, 'is_paid') else False,
         user_id=current_user.id,
-        deal_id=deal_id,
+        deal_id=invoice_in.deal_id,
         mid_amount=invoice_in.amount,
         due_date=invoice_in.due_date,
         label=invoice_in.label,

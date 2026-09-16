@@ -123,7 +123,7 @@ async def test_create_invoice_with_other_user(client, active_user, other_active_
 
     deal_json_a = {
          "name": "dealA",
-         "client_id": client_a.json().get('id'),
+         "client_id": client_b.json().get('id'),
      }
 
     deal_json_b = {
