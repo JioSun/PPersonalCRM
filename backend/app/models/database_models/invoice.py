@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.constants import InvoiceStatus
@@ -21,9 +21,10 @@ class Invoice(Base, IdMixin, TimestampMixin):
     label: Mapped[str] = mapped_column(String(50))
     number: Mapped[str] = mapped_column(default=generate_invoice_number)
     amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
+    currency: Mapped[str] = mapped_column(default="USD", server_default="USD",)
     status: Mapped[InvoiceStatus] = mapped_column(default=InvoiceStatus.DRAFT)
     due_date: Mapped[date] = mapped_column(default=date.today)
-    paid_at: Mapped[datetime | None] = mapped_column()
+    paid_at: Mapped[datetime | None] = mapped_column(default=None)
     is_paid: Mapped[bool] = mapped_column(default=False)
 
     user_id: Mapped[str] = mapped_column(

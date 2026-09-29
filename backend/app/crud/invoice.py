@@ -27,7 +27,6 @@ async def _next_invoice_number(session: AsyncSession, user_id: str) -> int:
     return result.scalar_one()
 
 async def create_invoice(
-    is_paid: bool,
     label: str,
     deal_id: str | None,
     user_id: str,
@@ -41,7 +40,6 @@ async def create_invoice(
         label=label,
         number=f"INV_{next_number}",
         user_id=user_id,
-        is_paid=is_paid,
         deal_id=deal_id,
         client_id=client_id,
         amount=amount,

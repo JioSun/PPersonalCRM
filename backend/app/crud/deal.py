@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from decimal import Decimal
 from typing import Any, Sequence
 
@@ -16,7 +16,8 @@ async def create_deal(
     amount: Decimal | None,
     user_id: str,
     client_id: str,
-    deadline: datetime | None,
+    deadline: date | None,
+    notes: str | None,
     session: AsyncSession,
 ) -> Deal:
     new_deal = Deal(
@@ -25,6 +26,7 @@ async def create_deal(
         user_id=user_id,
         client_id=client_id,
         deadline=deadline,
+        notes=notes
     )
     session.add(new_deal)
     await session.commit()

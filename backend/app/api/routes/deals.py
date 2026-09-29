@@ -60,6 +60,7 @@ async def create_new_deal(
         amount=deal_in.amount,
         deadline=deal_in.deadline,
         user_id=current_user.id,
+        notes=deal_in.notes,
         client_id=deal_in.client_id,
         session=session,
     )
