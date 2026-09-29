@@ -91,14 +91,8 @@ async def create_new_invoice(
         user_id=current_user.id, session=session, label=invoice_in.label
     )
 
-    deal_existing = await get_deal_by_id(deal_id=invoice_in.deal_id, user_id=current_user.id, session=session)
     client_existing = await get_client_by_id(client_id=invoice_in.client_id, user_id=current_user.id, session=session)
 
-    if not deal_existing:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Deal not found'
-        )
     if not client_existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -114,7 +108,6 @@ async def create_new_invoice(
 
     logger.info('Создание счета')
     new_invoice = await create_invoice(
-        is_paid=invoice_in.is_paid if hasattr(invoice_in, 'is_paid') else False,
         user_id=current_user.id,
         client_id=invoice_in.client_id,
         deal_id=invoice_in.deal_id,

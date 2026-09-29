@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from pydantic import StringConstraints, field_validator
-from typing import Annotated
+from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.constants import DealStatus
@@ -26,7 +26,7 @@ class DealFields(BaseModel):
         default=Decimal('0.00'), max_digits=12, decimal_places=2, ge=0
     )
 
-    deadline: datetime | None = None
+    deadline: date | None = None
 
     notes: str | None = Field(default=None, max_length=5000)
     client_id: str
@@ -48,7 +48,7 @@ class DealUpdate(BaseModel):
         default=None, max_digits=12, decimal_places=2, ge=0
     )
     status: DealStatus | None = None
-    deadline: datetime | None = None
+    deadline: date | None = None
     notes: str | None = Field(default=None, max_length=5000)
 
     @field_validator("amount", "name", "status", mode="before")
@@ -63,6 +63,9 @@ class DealRead(DealFields):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    amount: Decimal
+    currency: Literal['USD']
+    deadline: date | None
     status: DealStatus
     closed_at: datetime | None
     created_at: datetime

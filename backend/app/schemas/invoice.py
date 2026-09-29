@@ -61,7 +61,7 @@ class InvoiceRead(InvoiceFields):
     number: str
     status: InvoiceStatus
     label: InvoiceLabel
-    currency: Literal['USD'] = "USD"
+    currency: Literal['USD']
     paid_at: datetime | None
     created_at: datetime
     updated_at: datetime

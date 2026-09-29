@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -21,8 +21,9 @@ class Deal(Base, IdMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(index=True)
     amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
+    currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     status: Mapped[DealStatus] = mapped_column(default=DealStatus.NEW)
-    deadline: Mapped[datetime | None] = mapped_column(index=True)
+    deadline: Mapped[date | None] = mapped_column(index=True)
     closed_at: Mapped[datetime | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(Text)
 
