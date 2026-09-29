@@ -1,25 +1,20 @@
+from collections.abc import Sequence
 
-from mypy.nodes import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.dashboard import ClientSummary
 from backend.app.models.database_models.client import Client
 from backend.app.models.database_models.deal import Deal
-from backend.app.schemas.client import ClientUpdate
+from backend.app.schemas.client import ClientCreate, ClientUpdate
 
 
 async def create_client(
+    client_in: ClientCreate,
     user_id: str,
-    notes: str | None,
-    client_name: str,
     session: AsyncSession,
 ) -> Client:
-    new_client = Client(
-        user_id=user_id,
-        notes=notes,
-        client_name=client_name,
-    )
+    new_client = Client(**client_in.model_dump(exclude_unset=True), user_id=user_id)
     session.add(new_client)
     await session.commit()
     await session.refresh(new_client)

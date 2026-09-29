@@ -1,5 +1,3 @@
-
-
 async def test_register(client):
     response = await client.post('/auth/register', json={
       "email": "gresges@xample.com",
@@ -78,6 +76,54 @@ async def test_users_reading(active_user, other_active_user, client):
 
     assert response_b.status_code == 404
 
+async def test_own_client(active_user, client):
+    client_json = {
+        "client_name": "Joe",
+        "organization": "JoeCorp",
+        "email": "joecorp@example.com",
+        "client_status": "lead",
+    }
+    active_user = active_user[0]
+    client = await client.post('/clients', json=client_json, headers={'Authorization': active_user['Authorization']})
+    assert client.status_code == 201
+
+    deal_json = {
+        "name": "deal",
+        "client_id": client.json().get('id'),
+    }
+
+    deal = await client.post('/deals', json=deal_json, headers={'Authorization': active_user['Authorization']})
+    assert deal.status_code == 201
+
+async def test_forgotten_due_date(active_user, client):
+    client_json = {
+        "client_name": "Joe",
+        "organization": "JoeCorp",
+        "email": "joecorp@example.com",
+        "client_status": "lead",
+    }
+    active_user = active_user[0]
+    client = await client.post('/clients', json=client_json, headers={'Authorization': active_user['Authorization']})
+    assert client.status_code == 201
+
+    deal_json = {
+        "name": "deal",
+        "client_id": client.json().get('id'),
+    }
+
+    deal = await client.post('/deals', json=deal_json, headers={'Authorization': active_user['Authorization']})
+    assert deal.status_code == 201
+
+
+    invoice = {
+        "label": "invoiceB",
+        "client_id": client.json().get('id'),
+    }
+
+    invoice = await client.post('/invoices', json=invoice, headers={'Authorization': active_user['Authorization']})
+    assert invoice.status_code == 404
+
+
 async def test_two_email_reg(client):
     json = {
         "email": "testuser@xample.com",
@@ -108,9 +154,6 @@ async def test_create_invoice_with_other_user(client, active_user, other_active_
         "client_status": "lead",
     }
 
-
-
-
     active_user = active_user[0]
 
     client_a = await client.post('/clients', json=client_json_a,
@@ -133,8 +176,6 @@ async def test_create_invoice_with_other_user(client, active_user, other_active_
          "client_id": client_b.json().get('id'),
     }
 
-    assert client_b.status_code == 201
-
     deal_a = await client.post('/deals', json=deal_json_a, headers={'Authorization': active_user['Authorization']})
 
     assert deal_a.status_code == 404
@@ -143,11 +184,11 @@ async def test_create_invoice_with_other_user(client, active_user, other_active_
 
     assert deal_b.status_code == 201
 
-    invoice_a = {
+    invoice_b = {
         "label": "invoiceB",
-        "client_id": client_a.json().get('id'),
+        "client_id": client_b.json().get('id'),
+        "due_date": "2021-04-01",
     }
 
-    invoice_a = await client.post('/invoices', json=invoice_a, headers={'Authorization': active_user['Authorization']})
-    print(invoice_a.json())
-    assert invoice_a.status_code == 401
+    invoice_a = await client.post('/invoices', json=invoice_b, headers={'Authorization': active_user['Authorization']})
+    assert invoice_a.status_code == 404

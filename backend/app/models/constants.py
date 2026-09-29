@@ -9,12 +9,6 @@ class DealStatus(str, Enum):
     CANCELLED = 'cancelled'
 
 
-class Currency(str, Enum):
-    USD = 'USD'
-    EUR = 'EUR'
-    RUB = 'RUB'
-
-
 class InvoiceStatus(str, Enum):
     DRAFT = 'draft'
     SENT = 'sent'
