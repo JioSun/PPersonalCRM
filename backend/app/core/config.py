@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import EmailStr, PostgresDsn, computed_field
+from pydantic import EmailStr, PostgresDsn, computed_field, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
@@ -50,6 +50,18 @@ class Settings(BaseSettings):
                 host=self.POSTGRES_SERVER,
                 port=self.POSTGRES_PORT,
                 path=self.POSTGRES_DB,
+            )
+        )
+
+    @computed_field # type: ignore[prop-decorator]
+    @property
+    def REDIS_DATABASE_URL(self) -> str:
+        return str(
+            RedisDsn.build(
+                scheme='redis',
+                host=self.REDIS_HOST,
+                port=self.REDIS_PORT,
+                path=self.REDIS_DB,
             )
         )
 

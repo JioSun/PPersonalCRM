@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.models.constants import Currency, DealStatus
+from backend.app.models.constants import DealStatus
 from backend.app.models.database_models.base import Base, IdMixin, TimestampMixin
 
 if TYPE_CHECKING:
@@ -22,7 +22,6 @@ class Deal(Base, IdMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(index=True)
     amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
     status: Mapped[DealStatus] = mapped_column(default=DealStatus.NEW)
-    currency: Mapped[Currency] = mapped_column(default=Currency.USD)
     deadline: Mapped[datetime | None] = mapped_column(index=True)
     closed_at: Mapped[datetime | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(Text)

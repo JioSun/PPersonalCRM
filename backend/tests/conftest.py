@@ -1,80 +1,147 @@
 import os
 
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from typing_extensions import AsyncGenerator
 
+os.environ["POSTGRES_DB"] = "personalcrm_test"
+os.environ['REDIS_DB'] = "5"
+
+
+import pytest_asyncio
+import pytest
+from alembic import command
+from alembic.config import Config
+from httpx import ASGITransport, AsyncClient
+from redis import asyncio as redis
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine, AsyncEngine, AsyncConnection
+from typing_extensions import AsyncGenerator
+from redis.asyncio import Redis, ConnectionPool
+from backend.app.core.config import settings
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
 from backend.app.models.database_models import Base
+from pydantic import RedisDsn, TypeAdapter, PostgresDsn
 
-os.environ["POSTGRES_DB"] = "personalcrm_test"
+def validate_test_redis(redis_url: str) -> None:
+    adapter = TypeAdapter(RedisDsn)
+    url = adapter.validate_python(redis_url)
+    if url.host != 'localhost':
+        raise RuntimeError('Тест не может быть пройден по причине несовпадения хоста')
+    if url.port != 6379:
+        raise RuntimeError('Тест не может быть пройден по причине несовпадения порта')
+    if url.path != '/5':
+        raise RuntimeError('Тест не может быть пройден так как по причине несовпадения номера тестовой бд')
 
-from alembic import command
-from alembic.config import Config
-from redis import asyncio as redis
+def validate_test_database(db_url: str) -> None:
+    adapter = TypeAdapter(PostgresDsn)
+    url = adapter.validate_python(db_url)
+    hosts = url.hosts()
+    for host in hosts:
+        if url.path != '/personalcrm_test':
+            raise RuntimeError('Тест не может быть пройден по причине несовпадения имён бд')
+        if host.get('host') != 'localhost':
+            raise RuntimeError('Тест не может быть пройден по причине несовпадения хоста')
+        if host.get('port') != 5432:
+            raise RuntimeError('Тест не может быть пройден по причине несовпадения порта')
 
-from backend.app.core.config import settings
+async def truncate_table(session: AsyncConnection) -> None:
+    tables = ', '.join(table.name for table in Base.metadata.tables.values())
+    await session.execute(text(f"TRUNCATE {tables}"))
 
+def get_engine() -> AsyncEngine:
+    TEST_DATABASE_URL = settings.SQLALCHEMY_DATABASE_URI
+    validate_test_database(TEST_DATABASE_URL)
+    return create_async_engine(TEST_DATABASE_URL)
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-def apply_migrations():
+def get_redis_connection_pool():
+    TEST_REDIS_URL = settings.REDIS_DATABASE_URL
+    validate_test_redis(TEST_REDIS_URL)
+    return ConnectionPool.from_url(TEST_REDIS_URL, decode_responses=True)
+
+@pytest.fixture(scope='session', autouse=True)
+def upgrade_migration():
+    validate_test_database(settings.SQLALCHEMY_DATABASE_URI)
     command.upgrade(Config("alembic.ini"), "head")
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def session_pool():
-    TEST_DATABASE_URL = settings.SQLALCHEMY_DATABASE_URI
-
-    engine = create_async_engine(TEST_DATABASE_URL)
-    session_pool = async_sessionmaker(engine, expire_on_commit=False)
-    return session_pool
-
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def async_session(session_pool) -> AsyncGenerator[AsyncSession, None]:
-    async with session_pool() as session:
+@pytest_asyncio.fixture(scope='function')
+async def clean_tables():
+    engine = get_engine()
+    try:
+        async with engine.begin() as conn:
+            await truncate_table(conn)
         try:
-            yield session
+            yield
         finally:
-            for table in reversed(Base.metadata.sorted_tables):
-                await session.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE;"))
-                await session.commit()
-            await session.close()
+            async with engine.begin() as conn:
+                await truncate_table(conn)
+    finally:
+        await engine.dispose()
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def redis_session():
-    redis_pool = redis.ConnectionPool.from_url(
-        f'redis://{settings.REDIS_HOST}:6379/0',
-        decode_responses=True,
-    )
-
-    async with redis.Redis(connection_pool=redis_pool) as conn:
-        try:
-            yield conn
-        finally:
+@pytest_asyncio.fixture(scope='function')
+async def clean_redis():
+    connection_pool = get_redis_connection_pool()
+    try:
+        async with Redis(connection_pool=connection_pool) as conn:
             await conn.flushdb()
-            await conn.aclose()
+        try:
+            yield
+        finally:
+            async with Redis(connection_pool=connection_pool) as conn:
+                await conn.flushdb()
+    finally:
+        await connection_pool.aclose()
+
+@pytest_asyncio.fixture(scope="session")
+async def session_pool():
+    engine = get_engine()
+    session_pool = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        yield session_pool
+    finally:
+        await engine.dispose()
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def async_session(clean_tables, session_pool) -> AsyncGenerator[AsyncSession, None]:
+    validate_test_database(settings.SQLALCHEMY_DATABASE_URI)
+    async with session_pool() as session:
+        yield session
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def redis_session(clean_redis):
+    validate_test_redis(settings.REDIS_DATABASE_URL)
+    connection_pool = get_redis_connection_pool()
+    try:
+
+        async with redis.Redis(connection_pool=connection_pool) as conn:
+            yield conn
+    finally:
+        await connection_pool.aclose()
+
 
 
 @pytest_asyncio.fixture
 async def client(async_session, redis_session):
-    def async_overrides_session():
+    async def async_overrides_session():
         yield async_session
 
-    def async_overrides_redis_session():
+    async def async_overrides_redis_session():
         yield redis_session
 
     from backend.app.main import app
+    previous_provider = app.state.redis_provider
+    previous_overrides = app.dependency_overrides.copy()
 
-    app.dependency_overrides[get_db] = async_overrides_session
-    app.dependency_overrides[get_redis] = async_overrides_redis_session
+    try:
+        app.state.redis_provider = async_overrides_redis_session
+        app.dependency_overrides[get_db] = async_overrides_session
+        app.dependency_overrides[get_redis] = async_overrides_redis_session
+        transport = ASGITransport(app)
+        async with AsyncClient(transport=transport, base_url='http://test') as ac:
+            yield ac
+    finally:
+        app.state.redis_provider = previous_provider
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
 
-    transport = ASGITransport(app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        yield ac
-
-    app.dependency_overrides.clear()
 
 def auth_user_json() -> dict:
     json = {
@@ -95,8 +162,10 @@ def login_user_json() -> dict:
 
 @pytest_asyncio.fixture
 async def active_user(client):
-    await client.post("/auth/register", json=auth_user_json())
+    registration = await client.post("/auth/register", json=auth_user_json())
+    assert registration.status_code == 200, registration.text
     response = await client.post("/auth/login", data=login_user_json())
+    assert response.status_code == 200, response.text
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
 
     return headers, response
@@ -120,9 +189,10 @@ def other_login_user_json() -> dict:
 
 @pytest_asyncio.fixture
 async def other_active_user(client):
-    await client.post("/auth/register", json=other_auth_user_json())
+    registration = await client.post("/auth/register", json=other_auth_user_json())
+    assert registration.status_code == 200, registration.text
     response = await client.post("/auth/login", data=other_login_user_json())
+    assert response.status_code == 200, response.text
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
-
     return headers
 

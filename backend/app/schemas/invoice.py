@@ -1,19 +1,27 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal, Annotated
+from pydantic import StringConstraints, field_validator
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.app.models.constants import Currency, InvoiceStatus
 
+from ...app.models.constants import InvoiceStatus
+
+InvoiceLabel = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=50,
+    ),
+]
 
 class InvoiceFields(BaseModel):
     amount: Decimal = Field(
-        default=Decimal('0.00'), max_digits=12, decimal_places=2, ge=0
+        max_digits=12, decimal_places=2, gt=0
     )
-    currency: Currency = Currency.USD
-    status: InvoiceStatus = InvoiceStatus.DRAFT
     due_date: date
-    is_paid: bool = False
 
 
 class InvoiceBase(InvoiceFields):
@@ -21,16 +29,27 @@ class InvoiceBase(InvoiceFields):
 
 
 class InvoiceCreate(InvoiceBase):
-    label: str
+    model_config = ConfigDict(extra='forbid')
+
+    label: InvoiceLabel
     client_id: str
     deal_id: str | None = None
 
 
 class InvoiceUpdate(BaseModel):
-    amount: Decimal | None = None
-    status: InvoiceStatus | None = None
+    model_config = ConfigDict(extra='forbid')
+
+    amount: Decimal | None = Field(default=None, max_digits=12, decimal_places=2, gt=0)
     due_date: date | None = None
-    paid_at: datetime | None = None
+    label: InvoiceLabel  | None = None
+
+    @field_validator("amount", "due_date", "label", mode="before")
+    @classmethod
+    def reject_null(cls, value):
+        if value is None:
+            raise ValueError('Передавать Null в тело запроса для обновления нельзя')
+        return value
+
 
 
 class InvoiceRead(InvoiceFields):
@@ -40,6 +59,9 @@ class InvoiceRead(InvoiceFields):
     client_id: str
     deal_id: str | None
     number: str
+    status: InvoiceStatus
+    label: InvoiceLabel
+    currency: Literal['USD'] = "USD"
     paid_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -48,7 +70,7 @@ class InvoiceRead(InvoiceFields):
 class DocumentSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    label: str
+    label: InvoiceLabel
     client_name: str
     mid_amount: str
     due_date: str
@@ -56,3 +78,7 @@ class DocumentSummary(BaseModel):
     deal_name: str
     deal_amount: Decimal
     deadline: datetime
+
+
+
+

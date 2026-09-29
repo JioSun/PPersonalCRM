@@ -44,9 +44,8 @@ async def create_new_client(
 
     logger.info('Создание клиента')
     client = await create_client(
-        client_name=client_in.client_name,
+        client_in=client_in,
         user_id=current_user.id,
-        notes=client_in.notes,
         session=session,
     )
 

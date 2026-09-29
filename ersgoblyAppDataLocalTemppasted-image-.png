@@ -1,0 +1,137 @@
+[33mcommit 9a3ade8422690a1ba765e1c8e99b72cdb418737a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Thu Sep 17 01:09:56 2026 +0300
+
+    DEV-018
+
+[33mcommit fc95a2eef9ca1c8eda4d203c6398c6b525a87982[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 16 23:49:39 2026 +0300
+
+    DEV-017
+
+[33mcommit c1acbfc350dd3fdbb27a2a8f7e60b84afd1a8f52[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 16 23:20:40 2026 +0300
+
+    DEV-016
+
+[33mcommit fe3c0c8006eb02814be0dd317c1e0189d983aa82[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 16 23:12:58 2026 +0300
+
+    DEV-015
+
+[33mcommit 4b8e5d6980dabf323f66a7b45fd58bd3106f249a[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 16 22:58:57 2026 +0300
+
+    DEV-014
+
+[33mcommit d5c08c986336e3bf86e8cc91a9457dfa888de2dc[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 16 21:27:50 2026 +0300
+
+    DEV-013
+
+[33mcommit b1cc3561fa772df89752fc5138b257186035ac3d[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 16 21:11:22 2026 +0300
+
+    DEV-012
+
+[33mcommit f050c29be89068395fa21027d5a9da736917efa1[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Mon Sep 7 20:11:44 2026 +0300
+
+    DEV-01
+
+[33mcommit 7ede491d003ea847fb236aca4e6ea424fc448d32[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Thu Sep 3 02:00:37 2026 +0300
+
+    Completed ORM models
+
+[33mcommit cc0d8217688316b6af26587fe27392e076d4771b[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Sep 2 01:38:19 2026 +0300
+
+    Fix bug #n
+
+[33mcommit fd69ce8935e29a65383247effd085a27ffe6b545[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Mon Aug 31 13:10:09 2026 +0300
+
+    Fix process
+
+[33mcommit 0c8d01e7a2fa15a50d93bb86359242d885ed4a42[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Sun Aug 30 14:45:39 2026 +0300
+
+    Fix bug #1
+
+[33mcommit bf9a197ceb6a2a734fbf89fd7111f68712eac105[m[33m ([m[1;32mai[m[33m)[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Sun Aug 30 12:46:58 2026 +0300
+
+    Законченная ветка ai
+
+[33mcommit b5e476b504e57484bcbb7bc3615318478b6389da[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Fri Aug 28 19:30:39 2026 +0300
+
+    Тестовая сборка LLM #2
+
+[33mcommit d2ea537444baf83758831154ecf1ebdcb8345e68[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Fri Aug 28 15:31:34 2026 +0300
+
+    Тестовая сборка LLM #1
+
+[33mcommit 2657c7e6859ad496431208927ca2974facba797b[m[33m ([m[1;32mdatabase[m[33m)[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Fri Aug 28 12:25:04 2026 +0300
+
+    Final stage in Database branch
+
+[33mcommit 6f9698c28cdbd62ec1f77f11ed4b3e66570cb90f[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Mon Aug 24 16:43:10 2026 +0300
+
+    Celery complete
+
+[33mcommit f7bc39e29cf06158d0d65fb7c4a6033f9b036721[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Tue Aug 18 14:20:46 2026 +0300
+
+    State before Celery
+
+[33mcommit 90f376bd983975531202275ceeeee44e52781cdf[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Mon Aug 17 17:34:44 2026 +0300
+
+    env.py changed
+
+[33mcommit 427b98ebf552e97630ffc4f27b5bacfdb7eb6a74[m[33m ([m[1;31morigin/database[m[33m)[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Wed Aug 5 00:22:54 2026 +0300
+
+    Last state of work
+
+[33mcommit 25a7cffadd7a1f90611a2fe5eeb5ba71495f29a7[m[33m ([m[1;31morigin/api[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mapi[m[33m)[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Fri Jul 31 13:18:36 2026 +0300
+
+    Изменения поведения сущностей
+
+[33mcommit 9477a711fed193a7a4618140cbe4533a22f6e84b[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Thu Jul 30 19:03:33 2026 +0300
+
+    Security added
+
+[33mcommit 9f64f04877df3ae1a4fb8f4e3a10cdf07c5aeaf6[m
+Author: JioSun <suslovvana669@gmail.com>
+Date:   Sun Jul 26 16:32:58 2026 +0300
+
+    Project init
