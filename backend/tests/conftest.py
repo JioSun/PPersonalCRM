@@ -196,3 +196,34 @@ async def other_active_user(client):
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
     return headers
 
+@pytest_asyncio.fixture
+async def bother_user(active_user, other_active_user):
+    return active_user[0], other_active_user
+
+def client_a():
+    client_json = {
+        "client_name": "JoeA",
+        "organization": "JoeCorpA",
+        "email": "joecorpA@example.com",
+        "client_status": "lead",
+    }
+    return client_json
+
+def client_b():
+    client_json = {
+        "client_name": "JoeB",
+        "organization": "JoeCorpB",
+        "email": "joecorpB@example.com",
+        "client_status": "lead",
+    }
+    return client_json
+
+@pytest_asyncio.fixture
+async def users_with_created_clients(client, bother_user):
+    create_clientA = await client.post('/clients', json=client_a(), headers=bother_user[0])
+    create_clientB = await client.post('/clients', json=client_b(), headers=bother_user[1])
+
+    assert create_clientA.status_code == 200, create_clientA.text
+    assert create_clientB.status_code == 200, create_clientB.text
+
+    return create_clientA, create_clientB

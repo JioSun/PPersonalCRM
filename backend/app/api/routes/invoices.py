@@ -13,7 +13,6 @@ from backend.app.celery_tasks.email_tasks.tasks import send_invoice_email
 from backend.app.celery_tasks.pdf_tasks.tasks import render_pdf
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
-from backend.app.crud.client import get_client_by_id
 from backend.app.crud.deal import get_deal_by_id
 from backend.app.crud.invoice import (
     create_invoice,
@@ -21,8 +20,9 @@ from backend.app.crud.invoice import (
     get_invoice_by_id,
     get_invoices_list,
     get_invoices_sum,
-    update_invoice_by_id,
+    update_invoice_by_id, delete_invoice,
 )
+from backend.app.models.constants import InvoiceStatus
 from backend.app.models.database_models import Invoice, User
 from backend.app.schemas.invoice import (
     InvoiceCreate,
@@ -91,30 +91,24 @@ async def create_new_invoice(
         user_id=current_user.id, session=session, label=invoice_in.label
     )
 
-    client_existing = await get_client_by_id(client_id=invoice_in.client_id, user_id=current_user.id, session=session)
-
-    if not client_existing:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Client not found'
-        )
-
     if invoice_existing is not None:
         logger.error('Счет уже существует')
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail='Invoice already exists'
         )
 
+    deal_existing = await get_deal_by_id(deal_id=invoice_in.deal_id, session=session, user_id=current_user.id)
+    if deal_existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Deal not found'
+        )
 
-    logger.info('Создание счета')
     new_invoice = await create_invoice(
+        invoice_in=invoice_in,
+        status=InvoiceStatus.DRAFT,
+        client_id=deal_existing.client_id,
         user_id=current_user.id,
-        client_id=invoice_in.client_id,
-        deal_id=invoice_in.deal_id,
-        amount=invoice_in.amount,
-        due_date=invoice_in.due_date,
-        label=invoice_in.label,
-        session=session,
+        session=session
     )
 
     await conn.delete(f'dashboard:{current_user.id}')
@@ -147,10 +141,21 @@ async def update_invoice(
     current_user: User = Depends(get_current_active_user),
     conn: Redis = Depends(get_redis),
 ) -> InvoiceRead:
+    invoice_existing = await get_invoice_by_id(invoice_id=invoice_id, session=session, user_id=current_user.id)
+    if invoice_existing is not None:
+        if invoice_existing.status != InvoiceStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail='Invoice must have status DRAFT'
+            )
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+    update_data = new_invoice_data.model_dump(exclude_unset=True)
+
     updated_invoice = await update_invoice_by_id(
         invoice_id=invoice_id,
         user_id=current_user.id,
-        invoice_in=new_invoice_data,
+        valid_data=update_data,
         session=session,
     )
     if not updated_invoice:
@@ -188,3 +193,20 @@ async def invoice_pdf(
 
     logger.debug(result)
     return {'job_id': result.id}
+
+@router.delete('/{invoice_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_invoice_by_id(
+        invoice_id: str,
+        current_user: User = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db),
+        conn: Redis = Depends(get_redis),
+):
+    invoice_existing = await get_invoice_by_id(invoice_id=invoice_id, session=session, user_id=current_user.id)
+    if not invoice_existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+    if invoice_existing.status != InvoiceStatus.DRAFT:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Deletion is supported only when the status is "DRAFT"')
+
+    await delete_invoice(invoice_id=invoice_id, session=session, user_id=current_user.id)
+    await conn.delete(f'dashboard:{current_user.id}')

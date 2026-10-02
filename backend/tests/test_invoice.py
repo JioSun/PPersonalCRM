@@ -11,7 +11,7 @@ def valid_invoice_data() -> dict:
         "label": "Website development",
         "amount": "12.34",
         "due_date": "2026-10-10",
-        "client_id": "client-id",
+        "deal_id": "deal-id",
     }
 
 
@@ -23,7 +23,7 @@ def test_invoice_strips_label_whitespace(cls: type[InvoiceCreate] | type[Invoice
     data["label"] = label
 
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     assert cls(**data).label == "Дизайн"
 
@@ -33,7 +33,7 @@ def test_invoice_accepts_50_character_label(cls: type[InvoiceCreate] | type[Invo
     data["label"] = 'a' * 50
 
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     assert len(cls(**data).label) == 50
 
@@ -43,7 +43,7 @@ def test_invoice_rejects_label_longer_than_50_characters(cls: type[InvoiceCreate
     data["label"] = 'a' * 51
 
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     with pytest.raises(ValidationError) as exc:
         cls(**data)
@@ -62,7 +62,7 @@ def test_invoice_label_is_required_on_create_and_optional_on_update():
     assert exc.value.errors()[0]["loc"] == ("label",)
     assert exc.value.errors()[0]["type"] == "missing"
 
-    data.pop("client_id")
+    data.pop("deal_id")
     patch = InvoiceUpdate(**data)
 
     assert "label" not in patch.model_dump(exclude_unset=True)
@@ -100,7 +100,7 @@ def test_invoice_rejects_invalid_amount(amount: str, error_type: str, cls: type[
     data["amount"] = amount
 
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     with pytest.raises(ValidationError) as exc:
         cls(**data)
@@ -117,7 +117,7 @@ def test_invoice_accepts_valid_amount(amount: str, cls: type[InvoiceCreate] | ty
     data = valid_invoice_data()
     data["amount"] = amount
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     assert cls(**data).amount == Decimal(amount)
 
@@ -125,7 +125,7 @@ def test_invoice_accepts_valid_amount(amount: str, cls: type[InvoiceCreate] | ty
 def test_invoice_parses_due_date_as_date(cls: type[InvoiceCreate] | type[InvoiceUpdate]):
     data = valid_invoice_data()
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     model = cls(**data)
 
@@ -144,7 +144,7 @@ def test_invoice_rejects_invalid_due_date(cls: type[InvoiceCreate] | type[Invoic
     data["due_date"] = due_date
 
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     with pytest.raises(ValidationError) as exc:
         cls(**data)
@@ -167,7 +167,7 @@ def test_invoice_rejects_invalid_label(cls: type[InvoiceCreate] | type[InvoiceUp
     data["label"] = label
 
     if cls is InvoiceUpdate:
-        data.pop("client_id")
+        data.pop("deal_id")
 
     with pytest.raises(ValidationError) as exc:
         cls(**data)
@@ -196,10 +196,16 @@ async def test_invoice_update_with_only_label(client, active_user):
 
     assert response.status_code == 201
 
+    deal = await client.post('/deals', json={
+        'name': 'Test work', 'amount': '1000.00',
+        'client_id': response.json()['id'],
+    }, headers=active_user)
+    assert deal.status_code == 201, deal.text
+
     invoice_json = {
         "label": "invoiceA",
         "amount": "100",
-        "client_id": response.json().get('id'),
+        "deal_id": deal.json()["id"],
         "due_date": "2021-04-01",
     }
 
@@ -238,10 +244,16 @@ async def test_invoice_update_with_invalid_amount(client, active_user):
 
     assert response.status_code == 201
 
+    deal = await client.post('/deals', json={
+        'name': 'Test work', 'amount': '1000.00',
+        'client_id': response.json()['id'],
+    }, headers=active_user)
+    assert deal.status_code == 201, deal.text
+
     invoice_json = {
         "label": "Первый этап",
         "amount": "100.00",
-        "client_id": response.json().get('id'),
+        "deal_id": deal.json()["id"],
         "due_date": "2021-04-01",
     }
 
@@ -259,7 +271,7 @@ async def test_invoice_update_with_invalid_amount(client, active_user):
     invoice_get = await client.get(f'/invoices/{invoice_id}', headers={'Authorization': active_user['Authorization']})
 
     assert invoice_get.status_code == 200
-    assert invoice_get.json().get('client_id') == invoice_json.get('client_id')
+    assert invoice_get.json().get('client_id') == invoice.json()['client_id']
     assert invoice_get.json().get('due_date') == invoice_json.get('due_date')
     assert invoice_get.json().get('amount') == invoice_json.get('amount')
     assert invoice_get.json().get('label') == invoice_json.get('label')
@@ -280,10 +292,16 @@ async def test_invoice_none_amount(client, active_user):
 
     assert response.status_code == 201
 
+    deal = await client.post('/deals', json={
+        'name': 'Test work', 'amount': '1000.00',
+        'client_id': response.json()['id'],
+    }, headers=active_user)
+    assert deal.status_code == 201, deal.text
+
     invoice_json = {
         "label": "Первый этап",
         "amount": "100.00",
-        "client_id": response.json().get('id'),
+        "deal_id": deal.json()["id"],
         "due_date": "2021-04-01",
     }
 
@@ -302,8 +320,22 @@ async def test_invoice_none_amount(client, active_user):
     invoice_get = await client.get(f'/invoices/{invoice_id}', headers={'Authorization': active_user['Authorization']})
 
     assert invoice_get.status_code == 200
-    assert invoice_get.json().get('client_id') == invoice_json.get('client_id')
+    assert invoice_get.json().get('client_id') == invoice.json()['client_id']
     assert invoice_get.json().get('due_date') == invoice_json.get('due_date')
     assert invoice_get.json().get('amount') == invoice_json.get('amount')
     assert invoice_get.json().get('label') == invoice_json.get('label')
 
+@pytest.mark.parametrize('payload', [{}, {'deal_id': None}])
+def test_invoice_create_requires_deal(payload):
+    data = valid_invoice_data()
+    data.pop('deal_id')
+    data.update(payload)
+    with pytest.raises(ValidationError):
+        InvoiceCreate(**data)
+
+
+def test_invoice_create_rejects_explicit_client():
+    data = valid_invoice_data()
+    data['client_id'] = 'client-id'
+    with pytest.raises(ValidationError):
+        InvoiceCreate(**data)

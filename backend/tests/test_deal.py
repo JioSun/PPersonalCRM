@@ -219,5 +219,50 @@ async def test_deal_clear_notes(client, active_user):
     assert after.json().get("deadline") == deal_json.get("deadline")
 
 
+async def test_deal_clear_deadline(client, active_user):
+    client_json = {
+        "client_name": "Joe",
+        "organization": "JoeCorp",
+        "email": "joecorp@example.com",
+        "client_status": "lead",
+    }
+
+    active_user = active_user[0]
+
+    response = await client.post('/clients', json=client_json,
+                                 headers={'Authorization': active_user['Authorization']})
+
+    assert response.status_code == 201
+
+    deal_json = {
+        "name": "dealA",
+        "client_id": response.json().get('id'),
+        "deadline": "2021-04-01",
+        "notes": 'Test notes'
+    }
+
+    deal_response = await client.post('/deals', json=deal_json, headers={'Authorization': active_user['Authorization']})
+
+    assert deal_response.status_code == 201
+
+    before = await client.get(f'/deals/{deal_response.json().get("id")}',
+                             headers={'Authorization': active_user['Authorization']})
+
+    assert before.json()["deadline"] == deal_json.get("deadline")
+
+    deal_update_json = {"deadline": None}
+
+    deal_update_response = await client.patch(
+        f'/deals/{deal_response.json().get("id")}', json=deal_update_json, headers={'Authorization': active_user['Authorization']})
+
+    assert deal_update_response.status_code == 200
+
+    after =  await client.get(f'/deals/{deal_response.json().get("id")}', headers={'Authorization': active_user['Authorization']})
+
+    assert after.status_code == 200
+    assert after.json().get("deadline") is None
+    assert after.json().get("notes") == deal_json.get("notes")
+
+
 
 
