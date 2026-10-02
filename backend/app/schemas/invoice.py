@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Annotated
-from pydantic import StringConstraints, field_validator
+from pydantic import StringConstraints, field_validator, model_validator
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,9 +32,7 @@ class InvoiceCreate(InvoiceBase):
     model_config = ConfigDict(extra='forbid')
 
     label: InvoiceLabel
-    client_id: str
-    deal_id: str | None = None
-
+    deal_id: str
 
 class InvoiceUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -43,7 +41,7 @@ class InvoiceUpdate(BaseModel):
     due_date: date | None = None
     label: InvoiceLabel  | None = None
 
-    @field_validator("amount", "due_date", "label", mode="before")
+    @field_validator("amount", "due_date", "label",  mode="before")
     @classmethod
     def reject_null(cls, value):
         if value is None:
@@ -57,7 +55,7 @@ class InvoiceRead(InvoiceFields):
 
     id: str
     client_id: str
-    deal_id: str | None
+    deal_id: str
     number: str
     status: InvoiceStatus
     label: InvoiceLabel

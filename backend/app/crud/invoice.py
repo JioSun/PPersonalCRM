@@ -1,5 +1,4 @@
 import decimal
-from datetime import date
 from typing import Sequence
 
 from sqlalchemy import Select, and_, func, select
@@ -7,10 +6,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from backend.app.models.constants import InvoiceStatus
 from backend.app.models.dashboard import OverdueInvoice
 from backend.app.models.database_models import Client, Deal, Invoice, InvoiceCounter
 from backend.app.models.utils import get_datetime_utc
-from backend.app.schemas.invoice import InvoiceUpdate
+from backend.app.schemas.invoice import InvoiceUpdate, InvoiceCreate
 
 
 async def _next_invoice_number(session: AsyncSession, user_id: str) -> int:
@@ -27,23 +27,22 @@ async def _next_invoice_number(session: AsyncSession, user_id: str) -> int:
     return result.scalar_one()
 
 async def create_invoice(
-    label: str,
-    deal_id: str | None,
-    user_id: str,
+    invoice_in: InvoiceCreate,
     client_id: str,
-    amount: decimal.Decimal,
-    session: AsyncSession,
-    due_date: date | None,
+    status: InvoiceStatus,
+    user_id: str,
+    session: AsyncSession
 ) -> Invoice:
     next_number = await _next_invoice_number(session, user_id)
     new_invoice = Invoice(
-        label=label,
-        number=f"INV_{next_number}",
+        label=invoice_in.label,
+        due_date=invoice_in.due_date,
+        amount=invoice_in.amount,
+        status=status,
         user_id=user_id,
-        deal_id=deal_id,
         client_id=client_id,
-        amount=amount,
-        due_date= due_date if due_date is not None else date.today()
+        deal_id=invoice_in.deal_id,
+        number=f"INV_{next_number}"
     )
     session.add(new_invoice)
     await session.commit()
@@ -91,7 +90,7 @@ async def get_invoice_by_id(
 
 
 async def update_invoice_by_id(
-    invoice_id: str, user_id: str, invoice_in: InvoiceUpdate, session: AsyncSession
+    invoice_id: str, user_id: str, valid_data: dict, session: AsyncSession
 ) -> Invoice | None:
     db_invoice = await get_invoice_by_id(
         invoice_id=invoice_id, user_id=user_id, session=session
@@ -99,8 +98,7 @@ async def update_invoice_by_id(
     if not db_invoice:
         return None
 
-    update_data = invoice_in.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
+    for key, value in valid_data.items():
         setattr(db_invoice, key, value)
 
     session.add(db_invoice)
@@ -174,3 +172,23 @@ async def get_invoice_with_client(
     result = await session.execute(stmt)
 
     return result.scalar_one_or_none()
+
+async def delete_invoice(
+    invoice_id: str,
+    user_id: str,
+    session: AsyncSession,
+) -> bool:
+    result = await session.execute(
+        select(Invoice).where(
+            Invoice.id == invoice_id,
+            Invoice.user_id == user_id,
+        )
+    )
+    invoice = result.scalar_one_or_none()
+
+    if invoice is None:
+        return False
+
+    await session.delete(invoice)
+    await session.commit()
+    return True

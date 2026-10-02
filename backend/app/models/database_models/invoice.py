@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.constants import InvoiceStatus
@@ -18,32 +18,34 @@ if TYPE_CHECKING:
 class Invoice(Base, IdMixin, TimestampMixin):
     __tablename__ = 'invoices'
 
-    label: Mapped[str] = mapped_column(String(50))
+    label: Mapped[str] = mapped_column(String(50), nullable=False)
     number: Mapped[str] = mapped_column(default=generate_invoice_number)
-    amount: Mapped[Decimal] = mapped_column(default=Decimal('0.00'))
+    amount: Mapped[Decimal] = mapped_column(nullable=False)
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD",)
     status: Mapped[InvoiceStatus] = mapped_column(default=InvoiceStatus.DRAFT)
-    due_date: Mapped[date] = mapped_column(default=date.today)
+    due_date: Mapped[date] = mapped_column(nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(default=None)
     is_paid: Mapped[bool] = mapped_column(default=False)
 
     user_id: Mapped[str] = mapped_column(
-        ForeignKey('users.id', ondelete='CASCADE'), index=True
+        ForeignKey('users.id', ondelete='CASCADE'), index=True, nullable=False
     )
-    deal_id: Mapped[str | None] = mapped_column(
-        ForeignKey('deals.id', ondelete='CASCADE'), index=True, nullable=True
+    deal_id: Mapped[str] = mapped_column(
+        ForeignKey('deals.id', ondelete='CASCADE'), index=True, nullable=False
     )
     client_id: Mapped[str] = mapped_column(
-        ForeignKey('clients.id', ondelete='CASCADE'), index=True
+        ForeignKey('clients.id', ondelete='CASCADE'), index=True, nullable=False
     )
 
-    deal: Mapped['Deal | None'] = relationship(back_populates='invoices', lazy='raise')
+    deal: Mapped['Deal'] = relationship(back_populates='invoices', lazy='raise')
     client: Mapped['Client'] = relationship(back_populates='invoices', lazy='raise')
     user: Mapped['User'] = relationship(back_populates='invoices', lazy='raise')
 
     __table_args__ = (
         UniqueConstraint('user_id', 'number'),
-        CheckConstraint('amount >= 0', name='ck_invoices_amount_positive'),
+        CheckConstraint('amount > 0', name='ck_invoices_amount_positive'),
+        CheckConstraint(currency == "USD", name='ck_invoices_currency'),
+        CheckConstraint(func.length(func.trim(label)) > 0, name="ck_invoices_label_not_blank")
     )
 
 class InvoiceCounter(Base):
