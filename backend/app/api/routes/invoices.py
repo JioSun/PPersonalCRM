@@ -16,11 +16,12 @@ from backend.app.core.redis_py import get_redis
 from backend.app.crud.deal import get_deal_by_id
 from backend.app.crud.invoice import (
     create_invoice,
+    delete_invoice,
     existing_invoice_check,
     get_invoice_by_id,
     get_invoices_list,
     get_invoices_sum,
-    update_invoice_by_id, delete_invoice,
+    update_invoice_by_id,
 )
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.database_models import Invoice, User
@@ -42,9 +43,9 @@ logger = logging.getLogger(__name__)
 )
 async def get_invoices(
     q: str = Query(default='', description='Поиск по названию/номеру'),
-    is_paid: bool | None = None,
-    is_back: bool | None = None,
-    total_sum: Decimal | None = None,
+    is_paid: bool = False,
+    is_back: bool = False,
+    total_sum: bool = False,
     offset: int = Query(default=0, ge=0, description='Сколько записей пропустить'),
     limit: int = Query(default=20, le=100, description='Сколько записей вернуть'),
     current_user: User = Depends(get_current_active_user),

@@ -1,9 +1,10 @@
+from datetime import date
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
+
 from ..app.schemas.invoice import InvoiceCreate, InvoiceUpdate
-from datetime import date
 
 
 def valid_invoice_data() -> dict:

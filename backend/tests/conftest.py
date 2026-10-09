@@ -1,32 +1,45 @@
 import os
 
-
 os.environ["POSTGRES_DB"] = "personalcrm_test"
 os.environ['REDIS_DB'] = "5"
+os.environ['POSTGRES_SERVER'] = 'localhost'
+os.environ['POSTGRES_PORT'] = '55432'
+os.environ['POSTGRES_USER'] = 'crm_test'
+os.environ['POSTGRES_PASSWORD'] = 'crm_test_only'
+os.environ['REDIS_HOST'] = 'localhost'
+os.environ['REDIS_PORT'] = '56379'
 
 
-import pytest_asyncio
 import pytest
+import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+from pydantic import PostgresDsn, RedisDsn, TypeAdapter
 from redis import asyncio as redis
+from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine, AsyncEngine, AsyncConnection
+from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from typing_extensions import AsyncGenerator
-from redis.asyncio import Redis, ConnectionPool
+
 from backend.app.core.config import settings
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
 from backend.app.models.database_models import Base
-from pydantic import RedisDsn, TypeAdapter, PostgresDsn
+
 
 def validate_test_redis(redis_url: str) -> None:
     adapter = TypeAdapter(RedisDsn)
     url = adapter.validate_python(redis_url)
     if url.host != 'localhost':
         raise RuntimeError('Тест не может быть пройден по причине несовпадения хоста')
-    if url.port != 6379:
+    if url.port != 56379:
         raise RuntimeError('Тест не может быть пройден по причине несовпадения порта')
     if url.path != '/5':
         raise RuntimeError('Тест не может быть пройден так как по причине несовпадения номера тестовой бд')
@@ -40,7 +53,7 @@ def validate_test_database(db_url: str) -> None:
             raise RuntimeError('Тест не может быть пройден по причине несовпадения имён бд')
         if host.get('host') != 'localhost':
             raise RuntimeError('Тест не может быть пройден по причине несовпадения хоста')
-        if host.get('port') != 5432:
+        if host.get('port') != 55432:
             raise RuntimeError('Тест не может быть пройден по причине несовпадения порта')
 
 async def truncate_table(session: AsyncConnection) -> None:
@@ -57,13 +70,15 @@ def get_redis_connection_pool():
     validate_test_redis(TEST_REDIS_URL)
     return ConnectionPool.from_url(TEST_REDIS_URL, decode_responses=True)
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='session')
 def upgrade_migration():
+    if os.environ.get('CRM_TEST_SERVICES') != '1':
+        pytest.skip('Start compose.test.yaml and set CRM_TEST_SERVICES=1 for integration tests')
     validate_test_database(settings.SQLALCHEMY_DATABASE_URI)
     command.upgrade(Config("alembic.ini"), "head")
 
 @pytest_asyncio.fixture(scope='function')
-async def clean_tables():
+async def clean_tables(upgrade_migration):
     engine = get_engine()
     try:
         async with engine.begin() as conn:
@@ -77,7 +92,7 @@ async def clean_tables():
         await engine.dispose()
 
 @pytest_asyncio.fixture(scope='function')
-async def clean_redis():
+async def clean_redis(upgrade_migration):
     connection_pool = get_redis_connection_pool()
     try:
         async with Redis(connection_pool=connection_pool) as conn:
@@ -90,8 +105,10 @@ async def clean_redis():
     finally:
         await connection_pool.aclose()
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def session_pool():
+    # Migration tests recreate PostgreSQL types. Do not reuse connections with
+    # cached prepared statements/type metadata across test boundaries.
     engine = get_engine()
     session_pool = async_sessionmaker(engine, expire_on_commit=False)
     try:
@@ -99,13 +116,13 @@ async def session_pool():
     finally:
         await engine.dispose()
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
+@pytest_asyncio.fixture(scope="function")
 async def async_session(clean_tables, session_pool) -> AsyncGenerator[AsyncSession, None]:
     validate_test_database(settings.SQLALCHEMY_DATABASE_URI)
     async with session_pool() as session:
         yield session
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
+@pytest_asyncio.fixture(scope="function")
 async def redis_session(clean_redis):
     validate_test_redis(settings.REDIS_DATABASE_URL)
     connection_pool = get_redis_connection_pool()
@@ -119,9 +136,11 @@ async def redis_session(clean_redis):
 
 
 @pytest_asyncio.fixture
-async def client(async_session, redis_session):
+async def client(async_session, redis_session, session_pool):
     async def async_overrides_session():
-        yield async_session
+        # A GET must read committed data, not a previous request's identity map.
+        async with session_pool() as request_session:
+            yield request_session
 
     async def async_overrides_redis_session():
         yield redis_session
@@ -223,7 +242,7 @@ async def users_with_created_clients(client, bother_user):
     create_clientA = await client.post('/clients', json=client_a(), headers=bother_user[0])
     create_clientB = await client.post('/clients', json=client_b(), headers=bother_user[1])
 
-    assert create_clientA.status_code == 200, create_clientA.text
-    assert create_clientB.status_code == 200, create_clientB.text
+    assert create_clientA.status_code == 201, create_clientA.text
+    assert create_clientB.status_code == 201, create_clientB.text
 
     return create_clientA, create_clientB

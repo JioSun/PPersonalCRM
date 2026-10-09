@@ -11,9 +11,8 @@ class DealStatus(str, Enum):
 
 class InvoiceStatus(str, Enum):
     DRAFT = 'draft'
-    SENT = 'sent'
+    ISSUED = 'issued'
     PAID = 'paid'
-    OVERDUE = 'overdue'
     CANCELLED = 'cancelled'
 
 

@@ -26,6 +26,7 @@ class Invoice(Base, IdMixin, TimestampMixin):
     due_date: Mapped[date] = mapped_column(nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(default=None)
     is_paid: Mapped[bool] = mapped_column(default=False)
+    issue_version: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
     user_id: Mapped[str] = mapped_column(
         ForeignKey('users.id', ondelete='CASCADE'), index=True, nullable=False

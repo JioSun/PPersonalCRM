@@ -113,3 +113,19 @@ async def get_deals_by_client_id(
 
     result = await session.execute(stmt)
     return [dict(row) for row in result.all()]
+
+
+async def get_deal_by_id_for_update(
+    deal_id: str,
+    user_id: str,
+    session: AsyncSession,
+) -> Deal | None:
+    stmt = (select(Deal)
+            .where(Deal.id == deal_id, Deal.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True))
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+

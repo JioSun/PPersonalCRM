@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import EmailStr, PostgresDsn, computed_field, RedisDsn
+from pydantic import EmailStr, PostgresDsn, RedisDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
