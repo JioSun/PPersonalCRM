@@ -6,11 +6,12 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from backend.app.crud.deal import get_deal_by_id_for_update
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.dashboard import OverdueInvoice
 from backend.app.models.database_models import Client, Deal, Invoice, InvoiceCounter
 from backend.app.models.utils import get_datetime_utc
-from backend.app.schemas.invoice import InvoiceUpdate, InvoiceCreate
+from backend.app.schemas.invoice import InvoiceCreate
 
 
 async def _next_invoice_number(session: AsyncSession, user_id: str) -> int:
@@ -192,3 +193,16 @@ async def delete_invoice(
     await session.delete(invoice)
     await session.commit()
     return True
+
+async def get_invoice_by_id_for_update(
+    invoice_id: str,
+    user_id: str,
+    session: AsyncSession,
+) -> Invoice | None:
+    stmt = (select(Invoice)
+            .where(Invoice.id == invoice_id, Invoice.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True))
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+

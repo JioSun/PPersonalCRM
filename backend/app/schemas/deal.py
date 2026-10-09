@@ -1,11 +1,10 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
-from pydantic import StringConstraints, field_validator
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from ..models.constants import DealStatus
-
 
 DealName = Annotated[
     str,

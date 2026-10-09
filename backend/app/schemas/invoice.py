@@ -1,10 +1,15 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Literal, Annotated
-from pydantic import StringConstraints, field_validator, model_validator
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    computed_field
+)
 
 from ...app.models.constants import InvoiceStatus
 
@@ -63,6 +68,16 @@ class InvoiceRead(InvoiceFields):
     paid_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def is_overdue(self) -> bool:
+        now = datetime.now(timezone.utc).date()
+        due_date = self.due_date
+
+        return self.status == InvoiceStatus.ISSUED and now > due_date
+
+
 
 
 class DocumentSummary(BaseModel):
