@@ -16,12 +16,10 @@ from backend.app.core.redis_py import get_redis
 from backend.app.crud.deal import get_deal_by_id
 from backend.app.crud.invoice import (
     create_invoice,
-    delete_invoice,
     existing_invoice_check,
     get_invoice_by_id,
     get_invoices_list,
     get_invoices_sum,
-    update_invoice_by_id,
 )
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.database_models import Invoice, User
@@ -30,6 +28,8 @@ from backend.app.schemas.invoice import (
     InvoiceRead,
     InvoiceUpdate,
 )
+from backend.app.services.invoice import cancel_invoice_in_db, revoke_invoice_in_db, issue_invoice_in_db, \
+    delete_invoice_in_db, patch_invoice_in_db
 
 router = APIRouter(prefix='/invoices', tags=['invoice'])
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ async def get_invoices(
 async def create_new_invoice(
     invoice_in: InvoiceCreate,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db),
+    session: AsyncSession = Depends(get_db, use_cache=False),
     conn: Redis = Depends(get_redis),
 ) -> InvoiceRead:
     logger.debug('Проверка на существование счета')
@@ -119,8 +119,8 @@ async def create_new_invoice(
 @router.get('/{invoice_id}', status_code=status.HTTP_200_OK, response_model=InvoiceRead)
 async def get_invoice(
     invoice_id: str,
-    session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_db, use_cache=False),
 ) -> InvoiceRead:
     invoice = await get_invoice_by_id(
         user_id=current_user.id, invoice_id=invoice_id, session=session
@@ -138,33 +138,26 @@ async def get_invoice(
 async def update_invoice(
     invoice_id: str,
     new_invoice_data: InvoiceUpdate,
-    session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_db, use_cache=False),
     conn: Redis = Depends(get_redis),
 ) -> InvoiceRead:
-    invoice_existing = await get_invoice_by_id(invoice_id=invoice_id, session=session, user_id=current_user.id)
-    if invoice_existing is not None:
-        if invoice_existing.status != InvoiceStatus.DRAFT:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail='Invoice must have status DRAFT'
-            )
-    else:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
-
-    update_data = new_invoice_data.model_dump(exclude_unset=True)
-
-    updated_invoice = await update_invoice_by_id(
-        invoice_id=invoice_id,
-        user_id=current_user.id,
-        valid_data=update_data,
-        session=session,
-    )
-    if not updated_invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found'
+    try:
+        current_invoice = await patch_invoice_in_db(
+            invoice_id=invoice_id,
+            session=session,
+            user_id=current_user.id,
+            update_body=new_invoice_data
         )
+
+        if not current_invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found'
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     await conn.delete(f'dashboard:{current_user.id}')
-    return InvoiceRead.model_validate(updated_invoice)
+    return InvoiceRead.model_validate(current_invoice)
 
 
 @router.post('/{invoice_id}/generate_pdf', status_code=status.HTTP_201_CREATED)
@@ -199,15 +192,70 @@ async def invoice_pdf(
 async def delete_invoice_by_id(
         invoice_id: str,
         current_user: User = Depends(get_current_active_user),
-        session: AsyncSession = Depends(get_db),
+        session: AsyncSession = Depends(get_db, use_cache=False),
         conn: Redis = Depends(get_redis),
 ):
-    invoice_existing = await get_invoice_by_id(invoice_id=invoice_id, session=session, user_id=current_user.id)
-    if not invoice_existing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
-
-    if invoice_existing.status != InvoiceStatus.DRAFT:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Deletion is supported only when the status is "DRAFT"')
-
-    await delete_invoice(invoice_id=invoice_id, session=session, user_id=current_user.id)
+    try:
+        current_invoice = await delete_invoice_in_db(invoice_id=invoice_id, session=session, user_id=current_user.id)
+        if not current_invoice:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     await conn.delete(f'dashboard:{current_user.id}')
+
+@router.post('/{invoice_id}/cancel', status_code=status.HTTP_200_OK, response_model=InvoiceRead)
+async def cancel_invoice(
+        invoice_id: str,
+        current_user: User = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db, use_cache=False),
+        conn: Redis = Depends(get_redis),
+):
+    try:
+        invoice = await cancel_invoice_in_db(invoice_id=invoice_id, session=session, user_id=current_user.id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
+
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+    await conn.delete(f'dashboard:{current_user.id}')
+    await session.refresh(invoice)
+    return InvoiceRead.model_validate(invoice)
+
+@router.post('/{invoice_id}/revoke', status_code=status.HTTP_200_OK, response_model=InvoiceRead)
+async def revoke_invoice(
+        invoice_id: str,
+        current_user: User = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db, use_cache=False),
+        conn: Redis = Depends(get_redis),
+):
+    try:
+        invoice = await revoke_invoice_in_db(invoice_id=invoice_id, session=session, user_id=current_user.id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
+
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+    await conn.delete(f'dashboard:{current_user.id}')
+    await session.refresh(invoice)
+    return InvoiceRead.model_validate(invoice)
+
+@router.post('/{invoice_id}/issue', status_code=status.HTTP_200_OK, response_model=InvoiceRead)
+async def issue_invoice(
+        invoice_id: str,
+        current_user: User = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db, use_cache=False),
+        conn: Redis = Depends(get_redis),
+):
+    try:
+        invoice = await issue_invoice_in_db(invoice_id=invoice_id, session=session, user_id=current_user.id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
+
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+    await conn.delete(f'dashboard:{current_user.id}')
+    await session.refresh(invoice)
+    return InvoiceRead.model_validate(invoice)

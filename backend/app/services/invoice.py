@@ -1,9 +1,13 @@
+from datetime import datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crud.deal import get_deal_by_id_for_update
 from ..crud.invoice import get_invoice_by_id, get_invoice_by_id_for_update
 from ..models.constants import InvoiceStatus
 from ..models.database_models import Invoice
+from ..schemas.invoice import InvoiceUpdate
+
 
 def can_issue_invoice(status: InvoiceStatus) -> bool:
     return status == InvoiceStatus.DRAFT
@@ -14,11 +18,30 @@ def can_revoke_invoice(status: InvoiceStatus) -> bool:
 def can_cancel_invoice(status: InvoiceStatus) -> bool:
     return status in (InvoiceStatus.ISSUED, InvoiceStatus.DRAFT)
 
+def can_pay_invoice(status: InvoiceStatus) -> bool:
+    return status == InvoiceStatus.ISSUED
+
 def cancel_invoice(invoice: Invoice) -> None:
     invoice_status = invoice.status
     if not can_cancel_invoice(invoice_status):
         raise ValueError("Объект отменить нельзя")
     invoice.status = InvoiceStatus.CANCELLED
+
+def pay_invoice(
+    invoice: Invoice,
+    expected_issue_version: int,
+    now: datetime,
+) -> None:
+    invoice_status = invoice.status
+    if not can_pay_invoice(invoice_status):
+        raise ValueError("Объект оплатить нельзя")
+    if expected_issue_version != invoice.issue_version:
+        raise ValueError('Версии не совпадают')
+    if invoice.due_date > now:
+        raise ValueError('Просроченный счёт')
+    invoice.status = InvoiceStatus.PAID
+    invoice.is_paid = True
+
 
 def revoke_invoice(invoice: Invoice) -> None:
     invoice_status = invoice.status
@@ -64,6 +87,79 @@ async def cancel_invoice_in_db(
         cancel_invoice(current_invoice)
         return current_invoice
 
+async def issue_invoice_in_db(
+        invoice_id: str,
+        user_id: str,
+        session: AsyncSession,
+) -> Invoice | None:
+    async with session.begin():
+        current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
+        if current_invoice is None:
+            return None
 
+        issue_invoice(current_invoice)
+        return current_invoice
 
+async def revoke_invoice_in_db(
+        invoice_id: str,
+        user_id: str,
+        session: AsyncSession,
+) -> Invoice | None:
+    async with session.begin():
+        current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
+        if current_invoice is None:
+            return None
+
+        revoke_invoice(current_invoice)
+        return current_invoice
+
+async def delete_invoice_in_db(
+    invoice_id: str,
+    user_id: str,
+    session: AsyncSession,
+) -> bool:
+    async with session.begin():
+        current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
+        if current_invoice is None:
+            return False
+
+        if current_invoice.status is not InvoiceStatus.DRAFT:
+            raise ValueError("Статус счёта не предназначен для удаления")
+
+        await session.delete(current_invoice)
+        return True
+
+async def patch_invoice_in_db(
+    invoice_id: str,
+    user_id: str,
+    update_body: InvoiceUpdate,
+    session: AsyncSession,
+) -> Invoice | None:
+    async with session.begin():
+        current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
+        if current_invoice is None:
+            return None
+
+        if current_invoice.status is not InvoiceStatus.DRAFT:
+            raise ValueError("Статус счёта не предназначен для обновления")
+
+        for key, value in update_body.model_dump(exclude_unset=True).items():
+            setattr(current_invoice, key, value)
+
+        await session.flush()
+        await session.refresh(current_invoice)
+        return current_invoice
+
+async def pay_invoice_in_db(
+        invoice_id: str,
+        user_id: str,
+        session: AsyncSession,
+) -> Invoice | None:
+    async with session.begin():
+        current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
+        if current_invoice is None:
+            return None
+
+        revoke_invoice(current_invoice)
+        return current_invoice
 

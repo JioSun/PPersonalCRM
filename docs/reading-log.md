@@ -1,6 +1,20 @@
 # Материалы по проекту
 
+## Проверка отката при искусственном сбое
+
+- [ ] Прочитано: [pytest — monkeypatch функций](https://docs.pytest.org/en/stable/how-to/monkeypatch.html#monkeypatching-functions).
+  - На что обратить внимание: временная замена функции через `monkeypatch.setattr`; заменять имя в модуле, где его использует проверяемый код. Исходную функцию сохранить до подмены.
+  - Мои заметки:
+
+- [ ] Прочитано: [SQLAlchemy — Flushing](https://docs.sqlalchemy.org/en/20/orm/session_basics.html#flushing).
+  - На что обратить внимание: flush отправляет изменения в БД внутри текущей транзакции, но не фиксирует их. В AsyncSession вызывается `await session.flush()`; rollback может отменить эти изменения.
+  - Мои заметки:
+
 ## Интеграционная проверка сохранения
+
+- [ ] Прочитано: [SQLAlchemy — AsyncSession.get](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#sqlalchemy.ext.asyncio.AsyncSession.get).
+  - На что обратить внимание: получение ORM-объекта по первичному ключу, возврат `None` при отсутствии записи. В тесте проверяй именно объект из новой сессии и явно утверждай, что он существует.
+  - Мои заметки:
 
 - [ ] Прочитано: [SQLAlchemy — async_sessionmaker](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#sqlalchemy.ext.asyncio.async_sessionmaker).
   - На что обратить внимание: фабрика создаёт отдельные сессии; для подготовки данных, вызова сервиса и независимого чтения используй разные сессии из тестовой фикстуры `session_pool`.
@@ -102,8 +116,32 @@
   - На что обратить внимание: вызов `.with_for_update()` у SELECT; для первого шага без `nowait` и `skip_locked`.
   - Мои заметки:
 
+### HTTP-маршруты переходов состояния
+
+- [ ] Прочитано: [SQLAlchemy — предотвращение неявного ввода-вывода в AsyncSession](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession).
+  - На что обратить внимание: чтение незагруженного ORM-атрибута может потребовать SQL; синхронная сериализация не может выполнить такой запрос. Явный `await session.refresh(invoice)` загружает данные до сериализации.
+  - Мои заметки:
+
+- [ ] Прочитано: [FastAPI — асинхронные тесты](https://fastapi.tiangolo.com/advanced/async-tests/#example).
+  - На что обратить внимание: запросы через `await client.post(...)` и проверки ответа. В проекте используй готовую фикстуру `client`; создавать новый клиент и копировать маркер AnyIO из примера не нужно.
+  - Мои заметки:
+
+- [ ] Прочитано: [FastAPI — HTTPException](https://fastapi.tiangolo.com/tutorial/handling-errors/#use-httpexception).
+  - На что обратить внимание: исключение прерывает обработчик; отсутствие счёта отображаем в 404, запрещённый переход — в 409.
+  - Мои заметки:
+
+- [ ] Прочитано: [FastAPI — повторное использование зависимостей](https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/#using-the-same-dependency-multiple-times).
+  - На что обратить внимание: кэширование зависимости в рамках запроса и `Depends(get_db, use_cache=False)` для отдельной сессии обработчика. Чтение пользователя при авторизации уже запускает транзакцию в сессии авторизации.
+  - Мои заметки:
+
+### Внутренняя операция оплаты — время UTC
+
+- [x] Прочитано: [Python — aware и naive datetime](https://docs.python.org/3.12/library/datetime.html#aware-and-naive-objects).
+  - На что обратить внимание: дата-время с часовым поясом, `datetime.now(timezone.utc)` и получение даты UTC через `.date()`. Повтор подтверждения той же оплаты не должен менять первоначальный `paid_at`.
+  - Мои заметки:
+
 ### Актуальные значения уже загруженного ORM-объекта
 
-- [ ] Прочитано: [SQLAlchemy — Populate Existing](https://docs.sqlalchemy.org/en/20/orm/queryguide/api.html#populate-existing).
+- [x] Прочитано: [SQLAlchemy — Populate Existing](https://docs.sqlalchemy.org/en/20/orm/queryguide/api.html#populate-existing).
   - На что обратить внимание: `.execution_options(populate_existing=True)` обновляет уже загруженный объект данными результата SELECT. Для наших блокирующих чтений применяется до изменения объектов; не использовать для перезаписи собственных несохранённых правок.
   - Мои заметки:
