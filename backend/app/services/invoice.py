@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,14 +33,19 @@ def pay_invoice(
     now: datetime,
 ) -> None:
     invoice_status = invoice.status
-    if not can_pay_invoice(invoice_status):
-        raise ValueError("Объект оплатить нельзя")
     if expected_issue_version != invoice.issue_version:
         raise ValueError('Версии не совпадают')
-    if invoice.due_date > now:
+    if invoice.status is InvoiceStatus.PAID:
+        return None
+    if not can_pay_invoice(invoice_status):
+        raise ValueError("Объект оплатить нельзя")
+    if invoice.due_date < now.date():
         raise ValueError('Просроченный счёт')
+
     invoice.status = InvoiceStatus.PAID
+    invoice.paid_at = now
     invoice.is_paid = True
+    return None
 
 
 def revoke_invoice(invoice: Invoice) -> None:
@@ -153,13 +158,14 @@ async def patch_invoice_in_db(
 async def pay_invoice_in_db(
         invoice_id: str,
         user_id: str,
+        expected_issue_version: int,
         session: AsyncSession,
 ) -> Invoice | None:
     async with session.begin():
         current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
         if current_invoice is None:
             return None
-
-        revoke_invoice(current_invoice)
+        now = datetime.now(timezone.utc)
+        pay_invoice(invoice=current_invoice, now=now, expected_issue_version=expected_issue_version)
         return current_invoice
 
