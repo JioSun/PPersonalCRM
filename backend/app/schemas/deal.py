@@ -69,3 +69,15 @@ class DealRead(DealFields):
     closed_at: datetime | None
     created_at: datetime
     updated_at: datetime | None
+
+class DealListRead(DealRead):
+    model_config = ConfigDict(from_attributes=True)
+
+    paid_amount: Decimal
+    remaining_to_pay: Decimal
+
+class DealDetailRead(DealRead):
+    model_config = ConfigDict(from_attributes=True)
+
+    available_to_issue: Decimal
+    remaining_to_pay: Decimal

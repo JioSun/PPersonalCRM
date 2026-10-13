@@ -1,12 +1,11 @@
 import decimal
 from typing import Sequence
 
-from sqlalchemy import Select, and_, func, select
+from sqlalchemy import Select, and_, func, select, or_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, raiseload
 
-from backend.app.crud.deal import get_deal_by_id_for_update
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.dashboard import OverdueInvoice
 from backend.app.models.database_models import Client, Deal, Invoice, InvoiceCounter
@@ -65,7 +64,6 @@ async def get_invoices_by_client_name(
     stmt = (
         select(Invoice)
         .join(Client)
-        .options(selectinload(Invoice.client))
         .where(Client.client_name == client_name)
     )
     result = await session.execute(stmt)
@@ -85,7 +83,9 @@ async def existing_invoice_check(
 async def get_invoice_by_id(
     invoice_id: str, user_id: str, session: AsyncSession
 ) -> Invoice | None:
-    stmt = select(Invoice).where(Invoice.id == invoice_id, Invoice.user_id == user_id)
+    stmt = (select(Invoice)
+            .where(Invoice.id == invoice_id, Invoice.user_id == user_id)
+            )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -101,6 +101,7 @@ async def update_invoice_by_id(
 
     for key, value in valid_data.items():
         setattr(db_invoice, key, value)
+
 
     session.add(db_invoice)
     await session.commit()
@@ -202,7 +203,34 @@ async def get_invoice_by_id_for_update(
     stmt = (select(Invoice)
             .where(Invoice.id == invoice_id, Invoice.user_id == user_id)
             .with_for_update()
-            .execution_options(populate_existing=True))
+            .execution_options(populate_existing=True)
+            )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
+async def get_invoice_by_engaged_amount(
+        deal_id: str,
+        user_id: str,
+        session: AsyncSession,
+) -> decimal.Decimal:
+    stmt = (
+        select(func.coalesce(func.sum(Invoice.amount).filter(or_(Invoice.status == "paid", Invoice.status == "issued")), 0))
+        .where(Invoice.deal_id == deal_id, Invoice.user_id == user_id)
+    )
+
+    results = await session.execute(stmt)
+    return decimal.Decimal(results.scalar_one())
+
+async def get_invoice_by_paid_status(
+        deal_id: str,
+        user_id: str,
+        session: AsyncSession,
+) -> decimal.Decimal:
+    stmt = (
+        select(
+            func.coalesce(func.sum(Invoice.amount).filter(Invoice.status == "paid"), 0))
+        .where(Invoice.deal_id == deal_id, Invoice.user_id == user_id)
+    )
+
+    results = await session.execute(stmt)
+    return decimal.Decimal(results.scalar_one())

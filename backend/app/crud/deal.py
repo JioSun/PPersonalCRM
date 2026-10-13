@@ -2,10 +2,13 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Sequence
 
-from sqlalchemy import select
+
+from sqlalchemy import select, func, Row
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from backend.app.crud.invoice import get_invoice_by_engaged_amount
+from backend.app.models.database_models import Invoice
 from backend.app.models.database_models.client import Client
 from backend.app.models.database_models.deal import Deal
 from backend.app.schemas.deal import DealUpdate
@@ -55,16 +58,29 @@ async def get_deals_by_client_name(
 
 async def get_deals_by_query(
     user_id: str, q: str, offset: int, limit: int, session: AsyncSession
-) -> Sequence[Deal]:
+) -> Sequence[Row]:
     stmt = (
-        select(Deal)
+        select(
+            Deal,
+            func.coalesce(
+                func.sum(Invoice.amount)
+                .filter(Invoice.status == "paid"), 0)
+                .label("paid_amount"),
+            (Deal.amount - func.coalesce(
+                func.sum(Invoice.amount)
+                .filter(Invoice.status == "paid"), 0)
+            ).label("remaining_to_pay"),
+        )
+        .outerjoin(Deal.invoices)
         .where(Deal.user_id == user_id)
         .where(Deal.name.ilike(f'%{q}%'))
+        .group_by(Deal.id)
+        .order_by(Deal.created_at.desc(), Deal.id.desc())
         .limit(limit)
         .offset(offset)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return result.all()
 
 
 async def get_deal_by_id(
@@ -84,20 +100,26 @@ async def get_deal_by_name(name: str, session: AsyncSession) -> Deal | None:
 async def update_deal_by_id(
     deal_id: str, user_id: str, deal_in: DealUpdate, session: AsyncSession
 ) -> Deal | None:
-    db_deal = await get_deal_by_id(deal_id=deal_id, user_id=user_id, session=session)
-    if not db_deal:
-        return None
+    async with session.begin():
+        db_deal = await get_deal_by_id_for_update(deal_id=deal_id, user_id=user_id, session=session)
 
-    update_data = deal_in.model_dump(exclude_unset=True)
+        if not db_deal:
+            return None
 
-    for key, value in update_data.items():
-        setattr(db_deal, key, value)
+        update_data = deal_in.model_dump(exclude_unset=True)
+        engage_amount = await get_invoice_by_engaged_amount(deal_id=db_deal.id, user_id=user_id, session=session)
 
-    session.add(db_deal)
-    await session.commit()
-    await session.refresh(db_deal)
+        for key, value in update_data.items():
+            setattr(db_deal, key, value)
 
-    return db_deal
+        if db_deal.amount is not None:
+            if db_deal.amount < engage_amount:
+                raise ValueError("Сумма счёта не может быть меньше занятой суммы")
+
+        session.add(db_deal)
+        await session.flush()
+        await session.refresh(db_deal)
+        return db_deal
 
 
 async def get_deals_by_client_id(

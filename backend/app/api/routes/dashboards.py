@@ -1,5 +1,6 @@
 import logging
 import time
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends
 from redis.asyncio import Redis
@@ -9,7 +10,9 @@ from backend.app.api.dependencies import get_current_active_user
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
 from backend.app.crud.client import get_clients_sum
-from backend.app.crud.invoice import get_invoices_list
+from backend.app.crud.dashboard import get_dashboard_data, get_overdue_invoices, get_deals_by_status, \
+    get_clients_count_by_user_id
+from backend.app.models.constants import InvoiceStatus, DealStatus
 from backend.app.models.dashboard import DashboardResponse
 from backend.app.models.database_models import User
 
@@ -19,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/dashboard", response_model=DashboardResponse)
 async def dashboard(
+
     session: AsyncSession =Depends(get_db),
     conn: Redis =Depends(get_redis),
     current_user: User = Depends(get_current_active_user),
@@ -32,19 +36,32 @@ async def dashboard(
         logger.info(f"CACHE HIT: {elapsed * 1000:.2f}ms")
         return DashboardResponse.model_validate_json(get_result)
 
+    overdue_invoices = await get_overdue_invoices(session=session, user_id=current_user.id)
     clients_sum = await get_clients_sum(session=session, user_id=current_user.id)
-    overdue = await get_invoices_list(
-        user_id=current_user.id,
-        is_back=True,
-        session=session
-    )
+    dashboard_data = await get_dashboard_data(session=session, user_id=current_user.id)
+    deals_by_status = await get_deals_by_status(session=session, user_id=current_user.id)
+    clients_count = await get_clients_count_by_user_id(session=session, user_id=current_user.id)
 
-    data = DashboardResponse(
-        clients_summary=clients_sum,
-        overdue_invoice=overdue,)
 
-    await conn.set(f"dashboard:{current_user.id}", data.model_dump_json(), ex=60)
+    deals = {row.status: row.deal_count for row in deals_by_status}
+
+    deals.update({status.value: Decimal(0) for status in DealStatus if status.value not in deals})
+
+    data = {
+        'paid_amount': dashboard_data.paid_amount,
+        'unpaid_amount': dashboard_data.unpaid_amount,
+        'overdue_amount': dashboard_data.overdue_amount,
+        'overdue_count': dashboard_data.overdue_count,
+        'clients_summary': clients_sum,
+        'overdue_invoice': overdue_invoices,
+        'deals_by_status': deals,
+        'clients_count': clients_count,
+    }
+    dashboard_response = DashboardResponse.model_validate(data)
+
+    await conn.set(f"dashboard:{current_user.id}", dashboard_response.model_dump_json(), ex=60)
     elapsed = time.perf_counter() - start
-    logger.info(f"CACHE HIT: {elapsed * 1000:.2f}ms")
-    return data
+    logger.info(f"CACHE MISS: {elapsed * 1000:.2f}ms")
+
+    return dashboard_response
 

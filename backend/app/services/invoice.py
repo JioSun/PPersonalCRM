@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crud.deal import get_deal_by_id_for_update
-from ..crud.invoice import get_invoice_by_id, get_invoice_by_id_for_update
+from ..crud.invoice import get_invoice_by_id, get_invoice_by_id_for_update, get_invoice_by_engaged_amount
 from ..models.constants import InvoiceStatus
-from ..models.database_models import Invoice
+from ..models.database_models import Invoice, Deal
 from ..schemas.invoice import InvoiceUpdate
 
 
@@ -101,6 +101,13 @@ async def issue_invoice_in_db(
         current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
         if current_invoice is None:
             return None
+
+        current_deal: Deal = await get_deal_by_id_for_update(deal_id=current_invoice.deal_id, user_id=user_id, session=session)
+
+        engaged_amount = await get_invoice_by_engaged_amount(deal_id=current_invoice.deal_id, user_id=user_id, session=session)
+
+        if not (current_invoice.amount <= (current_deal.amount - engaged_amount)):
+            raise ValueError("Сумма счёта превышает доступную сумму для выставления")
 
         issue_invoice(current_invoice)
         return current_invoice

@@ -86,7 +86,7 @@ async def update_client_by_id(
 async def get_clients_sum(user_id: str, session: AsyncSession) -> list[ClientSummary]:
     stmt = (
         select(
-            Client.id, Client.client_name, func.sum(Deal.amount).label('total_spent')
+            Client.id, Client.client_name, func.coalesce(func.sum(Deal.amount), 0).label('total_spent')
         )
         .where(Client.user_id == user_id)
         .join(Deal, Deal.client_id == Client.id)
