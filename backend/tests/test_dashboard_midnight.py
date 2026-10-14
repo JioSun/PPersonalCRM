@@ -1,18 +1,20 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+import pytest
 
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.database_models import Invoice
 
 
+@pytest.mark.parametrize('hour, minute, second', [(12, 0, 0), (23, 59, 30), (23, 59, 50)])
 async def test_dashboard_refreshes_after_utc_midnight(
-        active_user, client, session_pool, redis_session, monkeypatch):
-    now = datetime(2026, 10, 14, 23, 59, 50, tzinfo=timezone.utc)
+        hour, minute, second, active_user, client, session_pool, redis_session, monkeypatch):
+    now = datetime(2026, 10, 14, hour, minute, second, tzinfo=timezone.utc)
 
     def current_time():
         return now
 
     monkeypatch.setattr('backend.app.models.utils.get_datetime_utc', current_time)
-    monkeypatch.setattr('backend.app.crud.dashboard.get_datetime_utc', current_time)
     monkeypatch.setattr(
         'backend.app.api.routes.dashboards.get_datetime_utc', current_time, raising=False,
     )
@@ -42,6 +44,20 @@ async def test_dashboard_refreshes_after_utc_midnight(
             invoice.status = InvoiceStatus.ISSUED
             invoice.issue_version = 1
 
+    original_set = redis_session.set
+    expires_at = None
+
+    async def set_with_test_clock(name, value, **kwargs):
+        nonlocal expires_at
+        assert kwargs.get('ex') is None, 'Use a single expiry option, not EX together with EXAT'
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        expected = int(min(now + timedelta(seconds=60), midnight).timestamp())
+        assert kwargs.get('exat') == expected
+        expires_at = expected
+        # Redis использует реальные часы: переносим проверенный срок на его шкалу времени.
+        return await original_set(name, value, ex=expected - int(now.timestamp()))
+
+    monkeypatch.setattr(redis_session, 'set', set_with_test_clock)
     response = await client.get('/dashboard', headers=headers)
     assert response.status_code == 200, response.text
     before = response.json()
@@ -49,8 +65,10 @@ async def test_dashboard_refreshes_after_utc_midnight(
     assert before['overdue_invoice'] == []
     assert await redis_session.get(f'dashboard:{user_id}') is not None
 
-    # Меняем только дату приложения. Redis не ждёт реального истечения TTL.
+    # Имитируем истечение по уже проверенному EXAT, не ждём реальной полуночи.
     now = datetime(2026, 10, 15, 0, 0, 1, tzinfo=timezone.utc)
+    assert expires_at <= int(now.timestamp())
+    await redis_session.delete(f'dashboard:{user_id}')
     response = await client.get('/dashboard', headers=headers)
     assert response.status_code == 200, response.text
     after = response.json()

@@ -63,6 +63,10 @@ async def test_patch_preserves_other_fields(client, records, resource, patch):
     after = await client.get(url, headers=headers)
     assert after.status_code == 200, after.text
     expected = before.json() | patch
+    if resource == 'deals' and 'amount' in patch:
+        # The fixture has only a DRAFT invoice, so both balances equal the deal amount.
+        expected['available_to_issue'] = patch['amount']
+        expected['remaining_to_pay'] = patch['amount']
     actual = after.json()
     expected.pop('updated_at')
     actual.pop('updated_at')

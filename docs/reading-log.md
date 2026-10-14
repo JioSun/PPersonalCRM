@@ -1,5 +1,93 @@
 # Материалы по проекту
 
+## Этап 3.3 — материалы к восьми задачам
+
+Подготовлено 14 октября 2026. Читать только материалы к текущей задаче, не весь список заранее. План и контракт работы: [handoff-stage-3.3.md](./handoff-stage-3.3.md). Все новые отметки оставлены пустыми; это отметки чтения, не реализации.
+
+### 3.3.1. Платёжная ссылка и её жизненный цикл
+
+- [ ] [Python 3.12 — secrets](https://docs.python.org/3.12/library/secrets.html#generating-tokens). Читать от **Generating tokens** до конца **How many bytes should tokens use?**, остановиться перед **Other functions**. Затем отдельно описание `compare_digest` в **Other functions**, без **Recipes and best practices**.
+  - Цель: случайный секрет для URL, размер случайности, безопасное сравнение. Не путать случайный токен с ID счёта.
+- [ ] [OWASP — Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html#url-tokens). Читать **URL Tokens** целиком, остановиться перед **PINs**.
+  - Цель: привязка секрета к объекту, защищённая ссылка, доверенный адрес сайта, утечка через Referer. Это аналогия с секретной ссылкой: не переносить сюда смену пароля и правило одноразовости буквально. У нашей ссылки свои правила версии, PAID и повторного чтения из domain.md.
+
+### 3.3.2. Публичное чтение счёта по ссылке
+
+- [ ] [FastAPI — Response Model](https://fastapi.tiangolo.com/tutorial/response-model/#response-model-parameter). Читать от **response_model Parameter** до конца **Add an output model**; затем **Return Type and Data Filtering** с подразделами, остановиться перед **See it in the docs**.
+  - Цель: отдельный публичный ответ без внутренних заметок и лишних полей ORM.
+- [ ] [FastAPI — Handling Errors](https://fastapi.tiangolo.com/tutorial/handling-errors/#use-httpexception). Читать **Use HTTPException**, включая пример **Raise an HTTPException in your code**, остановиться перед **Add custom headers**.
+  - Цель: явные ответы для недоступной ссылки и отсутствие случайных 500; конкретные коды согласуем в постановке.
+
+### 3.3.3. Задача Celery для демооплаты
+
+- [ ] [Celery — Tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html). Читать вступление от заголовка **Tasks** до оглавления; затем **Basics** вместе с **Bound tasks**, остановиться перед **Task inheritance**.
+  - Цель: задача, повторная доставка, подтверждение сообщения и отличие аргументов задачи от живых ORM-объектов. Настройки подтверждения выбирать осознанно, не копировать автоматически.
+- [ ] [SQLAlchemy — Using multiple asyncio event loops](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#using-multiple-asyncio-event-loops). Читать только этот раздел, остановиться перед **Using asyncio scoped session**.
+  - Цель: понять ограничения AsyncEngine/pool при запуске async-кода из синхронной Celery-задачи. Это материал для выбора жизненного цикла, не требование обязательно применять NullPool.
+
+### 3.3.4. Подтверждение оплаты и состояние обработки
+
+- [ ] [MDN — 202 Accepted](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/202). Читать описание и **Examples** с ответом и адресом проверки статуса; **Specifications** и ниже пропустить.
+  - Цель: принятие к обработке не означает завершённую оплату.
+- [ ] [Celery — Calling Tasks](https://docs.celeryq.dev/en/stable/userguide/calling.html). Читать **Basics** до **Linking (callbacks/errbacks)**; отдельно **Message Sending Retry** и **Connection Error Handling**, остановиться перед **Serializers**.
+  - Цель: публикация задания, её ошибки и отличие повторов публикации от повторов выполнения воркером.
+
+### 3.3.5. Клиентская страница
+
+- [ ] [FastAPI — Templates](https://fastapi.tiangolo.com/advanced/templates/#using-jinja2templates). Читать от **Using Jinja2Templates** через **Writing templates**, включая **Template Context Values**; остановиться перед **Template url_for Arguments**.
+  - Цель: минимальный серверный HTML с явно переданными данными. Отдельный frontend-фреймворк не нужен.
+- [ ] [MDN — Using the Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch). Читать **Making a request**: **Setting the method**, **Setting a body**, **Setting headers**; затем **Handling the response**: **Checking response status** и **Reading the response body**. Остальные подразделы пока пропустить.
+  - Цель: запрос подтверждения и чтение результата, различие сетевой ошибки и HTTP-отказа. Нужен при выборе страницы с JavaScript; при обычной HTML-форме материал можно отложить.
+
+### 3.3.6. Сбои, повторы и кэш после оплаты
+
+- [ ] [Celery — Retrying](https://docs.celeryq.dev/en/stable/userguide/tasks.html#retrying). Читать от **Retrying** через **Automatic retry for known exceptions** с параметрами `max_retries`, `retry_backoff`, `retry_backoff_max`, `retry_jitter`; остановиться перед **Argument validation with Pydantic**.
+  - Цель: ограниченные повторы для временных ошибок, а не для доменного отказа. Не считать повтор откатом уже завершённой транзакции.
+- [ ] [Redis — DEL](https://redis.io/docs/latest/commands/del/). Повторить описание и **Examples**, остальные разделы пропустить. Рядом перечитать локальный [контракт транзакций](./handoff-stage-3.3.md#критичные-технические-договорённости): пункты про commit и кэш.
+  - Цель: безопасное повторное удаление ключа; Redis и PostgreSQL не одна транзакция.
+
+### 3.3.7. Доставка ссылки клиенту и повтор отправки
+
+- [ ] [Celery — Canvas / Chains](https://docs.celeryq.dev/en/stable/userguide/canvas.html#chains). Читать только **Chains**, включая обработку ошибок цепочки, остановиться перед **Groups**.
+  - Цель: передача результата между существующими PDF/email-задачами и поведение при ошибке.
+- [ ] [Python 3.12 — smtplib exceptions](https://docs.python.org/3.12/library/smtplib.html#smtplib.SMTPException). Читать описания исключений от **SMTPException** до **SMTPNotSupportedError** включительно; остановиться перед **SMTP Objects**.
+  - Цель: различать ошибки соединения, аутентификации и отказ адресата; решение о повторе зависит от причины. Даже ошибка отправки не всегда доказывает отсутствие доставки.
+
+### 3.3.8. Итоговые проверки
+
+- [ ] [Celery — Tasks and unit tests](https://docs.celeryq.dev/en/stable/userguide/testing.html#tasks-and-unit-tests). Читать весь раздел **Tasks and unit tests**, остановиться перед **pytest**.
+  - Цель: различать тест функции, подмену зависимостей и имитацию eager mode.
+- [ ] [Celery — pytest](https://docs.celeryq.dev/en/stable/userguide/testing.html#pytest). Читать **Enabling**, **Marks** и **Fixtures**, в Fixtures — только `celery_app` и `celery_worker`; остановиться перед **Session scope**.
+  - Цель: первый тест с настоящим тестовым воркером. Его пишет пользователь после согласования изолированного окружения; ассистент дополняет повторяющиеся сценарии. `celery.contrib.pytest` и Docker-плагин `pytest-celery` — разные инструменты, оба устанавливать не требуется. Сначала выбрать подходящий вариант проверки.
+
+Мои заметки по 3.3:
+
+## Инвалидация после оплаты — перенесено из 3.2 в задачу 3.3.6
+
+Исторические материалы ниже сохранены вместе с отметками. Отдельную pay_invoice_with_cache не реализуем ради старой постановки: подключение кэша будет в фактическом вызывающем слое оплаты.
+
+- [ ] Повторено: [SQLAlchemy — Managing Transactions](https://docs.sqlalchemy.org/en/20/orm/session_transaction.html) — пример `with session.begin():` и следующий поясняющий абзац; остановиться перед «The session may also be used in a commit-as-you-go approach».
+  - На что обратить внимание: нормальный возврат из нашей pay_invoice_in_db происходит после завершения её контекста транзакции. Redis не участвует в транзакции PostgreSQL; ошибка удаления кэша после commit не откатывает оплату.
+  - Мои заметки:
+
+- [ ] Повторено: [Redis — DEL](https://redis.io/docs/latest/commands/del/) — описание и Examples, остальные разделы пропустить.
+  - На что обратить внимание: удаление отсутствующего ключа допустимо. Повтор подтверждённой оплаты может повторно инвалидировать кэш без изменения paid_at.
+  - Мои заметки:
+
+## Redis — удаление ключа и абсолютный срок истечения
+
+- [ ] Прочитано: [Redis — DEL](https://redis.io/docs/latest/commands/del/) — описание команды и раздел Examples; остальные разделы пропустить.
+  - На что обратить внимание: удаляет указанные ключи, отсутствующий ключ не считается ошибкой. В проекте `await conn.delete(key)` удаляет кэш одного пользователя после изменения данных.
+  - Мои заметки:
+
+- [ ] Прочитано: [Redis — SET](https://redis.io/docs/latest/commands/set/) — синтаксис, опции `EX seconds` и `EXAT timestamp`; остальные опции пропустить.
+  - На что обратить внимание: EX — относительное число секунд, EXAT — абсолютный Unix timestamp в секундах. Выбирается одна из этих опций. Истечение отслеживает Redis, отдельный Python-процесс в полночь не нужен.
+  - Мои заметки:
+
+- [ ] Справка: [redis-py — set](https://redis.readthedocs.io/en/stable/commands.html#redis.commands.core.BasicKeyCommands.set) — только сигнатура и описание параметра `exat`, до следующего метода.
+  - На что обратить внимание: в асинхронном клиенте используется `await conn.set(..., exat=...)`; срок для текущей задачи — более ранний момент из следующей полуночи UTC и 60 секунд после расчёта.
+  - Мои заметки:
+
 ## Этап 3.2 — дата UTC и актуальность кэша
 
 - [ ] Прочитано: [Redis — SET](https://redis.io/docs/latest/commands/set/) — синтаксис и описание опции `EX seconds`; остальные опции пока пропустить.

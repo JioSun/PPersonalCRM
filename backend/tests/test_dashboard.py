@@ -23,8 +23,9 @@ async def test_dashboard_working(client, active_user):
 async def test_dashboard_financial_totals(
         scenario, layer, bother_user, client, session_pool, redis_session, monkeypatch):
     headers, other_headers = bother_user
-    now = datetime(2026, 10, 13, 12, tzinfo=timezone.utc)
-    monkeypatch.setattr('backend.app.crud.dashboard.get_datetime_utc', lambda: now)
+    # EXAT использует реальные часы Redis; сроки счетов задаём относительно этого момента.
+    now = datetime.now(timezone.utc)
+    monkeypatch.setattr('backend.app.api.routes.dashboards.get_datetime_utc', lambda: now)
     today = now.date()
     overdue_id = None
     for owner_headers in [headers, other_headers]:
@@ -73,13 +74,13 @@ async def test_dashboard_financial_totals(
     expected = ('0', '0', '0', 0) if scenario == 'empty' else ('25.15', '60.60', '10.10', 1)
     if layer == 'crud':
         async with session_pool() as session:
-            row = await get_dashboard_data(user_id=user_id, session=session)
+            row = await get_dashboard_data(user_id=user_id, current_datetime=now, session=session)
             for name, value in zip(['paid_amount', 'unpaid_amount', 'overdue_amount'], expected[:3]):
                 assert isinstance(getattr(row, name), Decimal)
                 assert getattr(row, name) == Decimal(value)
             assert type(row.overdue_count) is int
             assert row.overdue_count == expected[3]
-            overdue = await get_overdue_invoices(user_id=user_id, session=session)
+            overdue = await get_overdue_invoices(user_id=user_id, current_datetime=now, session=session)
             assert {invoice.id for invoice in overdue} == ({overdue_id} if overdue_id else set())
     else:
         await redis_session.delete(f'dashboard:{user_id}')
