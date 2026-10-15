@@ -9,9 +9,10 @@ from backend.app.models.constants import DealStatus
 from backend.app.models.database_models.base import Base, IdMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from backend.app.models.database_models.client import Client
-    from backend.app.models.database_models.invoice import Invoice
-    from backend.app.models.database_models.user import User
+    from ....app.models.database_models.client import Client
+    from ....app.models.database_models.invoice import Invoice
+    from ....app.models.database_models.user import User
+
 
 
 class Deal(Base, IdMixin, TimestampMixin):
@@ -42,6 +43,7 @@ class Deal(Base, IdMixin, TimestampMixin):
         cascade='all, delete-orphan',
         lazy='raise',
     )
+
 
     __table_args__ = (
         CheckConstraint('amount >= 0', name='ck_deals_amount_positive'),

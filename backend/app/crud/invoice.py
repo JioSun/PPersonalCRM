@@ -4,7 +4,7 @@ from typing import Sequence
 from sqlalchemy import Select, and_, func, select, or_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload, raiseload
+from sqlalchemy.orm import joinedload
 
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.dashboard import OverdueInvoice

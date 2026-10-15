@@ -1,7 +1,8 @@
-from backend.app.models.database_models.base import Base
-from backend.app.models.database_models.client import Client
-from backend.app.models.database_models.deal import Deal
-from backend.app.models.database_models.invoice import Invoice, InvoiceCounter
-from backend.app.models.database_models.user import User
+from ....app.models.database_models.base import Base
+from ....app.models.database_models.client import Client
+from ....app.models.database_models.deal import Deal
+from ....app.models.database_models.invoice import Invoice, InvoiceCounter
+from ....app.models.database_models.user import User
+from ....app.models.database_models.token import Token
 
-__all__ = ['Base', 'User', 'Client', 'Deal', 'Invoice', 'InvoiceCounter']
+__all__ = ['Base', 'User', 'Client', 'Deal', 'Invoice', 'InvoiceCounter', 'Token']

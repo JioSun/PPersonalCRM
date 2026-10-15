@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crud.deal import get_deal_by_id_for_update
 from ..crud.invoice import get_invoice_by_id, get_invoice_by_id_for_update, get_invoice_by_engaged_amount
+from ..crud.token import delete_token_by_invoice_id, create_token, get_token_by_invoice_id
 from ..models.constants import InvoiceStatus
 from ..models.database_models import Invoice, Deal
 from ..schemas.invoice import InvoiceUpdate
@@ -90,6 +91,7 @@ async def cancel_invoice_in_db(
             return None
 
         cancel_invoice(current_invoice)
+        await delete_token_by_invoice_id(invoice_id=invoice_id, session=session)
         return current_invoice
 
 async def issue_invoice_in_db(
@@ -110,6 +112,7 @@ async def issue_invoice_in_db(
             raise ValueError("Сумма счёта превышает доступную сумму для выставления")
 
         issue_invoice(current_invoice)
+        await create_token(invoice_id=invoice_id, issue_version=current_invoice.issue_version,session=session)
         return current_invoice
 
 async def revoke_invoice_in_db(
@@ -123,6 +126,7 @@ async def revoke_invoice_in_db(
             return None
 
         revoke_invoice(current_invoice)
+        await delete_token_by_invoice_id(invoice_id=invoice_id, session=session)
         return current_invoice
 
 async def delete_invoice_in_db(
@@ -172,7 +176,9 @@ async def pay_invoice_in_db(
         current_invoice = await get_invoice_for_transition(invoice_id=invoice_id, user_id=user_id, session=session)
         if current_invoice is None:
             return None
+
         now = datetime.now(timezone.utc)
+
         pay_invoice(invoice=current_invoice, now=now, expected_issue_version=expected_issue_version)
         return current_invoice
 

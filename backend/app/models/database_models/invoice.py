@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from backend.app.models.database_models.client import Client
     from backend.app.models.database_models.deal import Deal
     from backend.app.models.database_models.user import User
+    from ....app.models.database_models.token import Token
+
 
 
 class Invoice(Base, IdMixin, TimestampMixin):
@@ -41,7 +43,12 @@ class Invoice(Base, IdMixin, TimestampMixin):
     deal: Mapped['Deal'] = relationship(back_populates='invoices', lazy='raise')
     client: Mapped['Client'] = relationship(back_populates='invoices', lazy='raise')
     user: Mapped['User'] = relationship(back_populates='invoices', lazy='raise')
-
+    tokens: Mapped[list['Token']] = relationship(
+        back_populates='invoice',
+        passive_deletes=True,
+        cascade='all, delete-orphan',
+        lazy='raise',
+    )
     __table_args__ = (
         UniqueConstraint('user_id', 'number'),
         CheckConstraint('amount > 0', name='ck_invoices_amount_positive'),

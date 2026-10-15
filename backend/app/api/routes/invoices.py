@@ -21,6 +21,7 @@ from backend.app.crud.invoice import (
     get_invoices_list,
     get_invoices_sum,
 )
+from backend.app.crud.token import get_token_by_invoice_id
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.database_models import Invoice, User
 from backend.app.schemas.invoice import (
@@ -130,6 +131,29 @@ async def get_invoice(
             status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found'
         )
     return InvoiceRead.model_validate(invoice)
+
+@router.get('/{invoice_id}/payment-link', status_code=status.HTTP_200_OK)
+async def get_invoice_payment_link(
+    invoice_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_db, use_cache=False),
+) -> dict[str, str]:
+    invoice = await get_invoice_by_id(
+        user_id=current_user.id, invoice_id=invoice_id, session=session
+    )
+    get_token = await get_token_by_invoice_id(invoice_id=invoice_id, session=session)
+
+    if not invoice or invoice.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found'
+        )
+
+    if not get_token:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Links are not match')
+
+    link = f"invoice//{invoice_id}/{get_token.token_value}"
+
+    return {"payment_url": link}
 
 
 @router.patch(

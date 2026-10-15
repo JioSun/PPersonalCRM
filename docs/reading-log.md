@@ -11,6 +11,13 @@
 - [ ] [OWASP — Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html#url-tokens). Читать **URL Tokens** целиком, остановиться перед **PINs**.
   - Цель: привязка секрета к объекту, защищённая ссылка, доверенный адрес сайта, утечка через Referer. Это аналогия с секретной ссылкой: не переносить сюда смену пароля и правило одноразовости буквально. У нашей ссылки свои правила версии, PAID и повторного чтения из domain.md.
 
+#### Справка к миграции токенов: autogenerate и имена ограничений
+
+- [ ] [Alembic — Auto Generating Migrations](https://alembic.sqlalchemy.org/en/latest/autogenerate.html). Читать вступление до **What does Autogenerate Detect (and what does it not detect?)**, включая предупреждение о ручной проверке; затем отдельно **Comparing Types**, остановиться перед **Applying Post Processing and Python Code Formatters to Generated Revisions**.
+  - Цель: autogenerate сравнивает схему подключённой БД с metadata моделей, а не изменения Python-файлов или содержимое прошлой миграции. `existing_type` описывает отражённый тип БД, `type_` — целевой тип.
+- [ ] [Alembic — The Importance of Naming Constraints](https://alembic.sqlalchemy.org/en/latest/naming.html). Читать вступление до **Integration of Naming Conventions into Operations, Autogenerate**; дальнейшее пока пропустить.
+  - Цель: для удаления ограничения требуется его имя; при явном именовании использовать одно имя в создании и удалении. Внедрять глобальный naming convention для этой задачи не требуется.
+
 ### 3.3.2. Публичное чтение счёта по ссылке
 
 - [ ] [FastAPI — Response Model](https://fastapi.tiangolo.com/tutorial/response-model/#response-model-parameter). Читать от **response_model Parameter** до конца **Add an output model**; затем **Return Type and Data Filtering** с подразделами, остановиться перед **See it in the docs**.
