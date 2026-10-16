@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crud.deal import get_deal_by_id_for_update
 from ..crud.invoice import get_invoice_by_id, get_invoice_by_id_for_update, get_invoice_by_engaged_amount
-from ..crud.token import delete_token_by_invoice_id, create_token, get_token_by_invoice_id
+from ..crud.token import delete_token_by_invoice_id, create_token
 from ..models.constants import InvoiceStatus
 from ..models.database_models import Invoice, Deal
 from ..schemas.invoice import InvoiceUpdate

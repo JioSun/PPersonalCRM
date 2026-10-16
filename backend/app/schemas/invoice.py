@@ -77,8 +77,18 @@ class InvoiceRead(InvoiceFields):
 
         return self.status == InvoiceStatus.ISSUED and now > due_date
 
+class InvoiceSecretRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-
+    number: str
+    label: InvoiceLabel
+    amount: Decimal
+    currency: Literal['USD']
+    due_date: date
+    status: InvoiceStatus
+    paid_at: datetime | None
+    is_overdue: bool
+    can_pay: bool
 
 class DocumentSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,3 @@
-import base64
 import logging
 import smtplib
 from email.mime.application import MIMEApplication
@@ -7,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from celery import Task
 
 from backend.app.celery_tasks.celery_init import app
-from backend.app.celery_tasks.email_tasks.utils import smtp_connection
+from backend.app.celery_tasks.utils import smtp_connection
 from backend.app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -21,14 +20,13 @@ logger = logging.getLogger(__name__)
     acks_late=True,
 )
 def send_invoice_email(
-    self: Task, base64_pdf: str, email: str, invoice_id: str
+    self: Task, email: str, invoice_id: str
 ) -> None:
     msg = MIMEMultipart()
     msg['From'] = settings.EMAIL
     msg['To'] = email
-    msg['Subject'] = f'Invoice ID: {invoice_id}'
-    filename = f'{invoice_id}.pdf'
-    attachment = MIMEApplication(base64.b64decode(base64_pdf), Name=filename)
+    msg['Subject'] = f'PersonalCRM: вам пришли письмо от исполнителя'
+    attachment = MIMEApplication()
     attachment.add_header('Content-Disposition', 'attachment', filename=filename)
     msg.attach(attachment)
 

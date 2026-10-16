@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # GEMINI
     GEMINI_API_KEY: str
 
+    # Web
+    MAIN_URL: str
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

@@ -3,20 +3,19 @@ from decimal import Decimal
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
+from sqlalchemy import select
 
+from backend.app.core.redis_py import get_redis
 from backend.app.models.constants import InvoiceStatus
-from backend.app.models.database_models import Invoice
-from backend.app.services import invoice as invoice_service
+from backend.app.models.database_models import Invoice, Token
 
 
-# Черновик прежней постановки. В 3.3 адаптировать к фактическому обработчику/воркеру,
-# не требовать отдельную pay_invoice_with_cache и не переносить Redis в операцию БД.
-pytestmark = pytest.mark.skip(reason='Отложено до 3.3: вызывающий слой оплаты ещё не реализован')
-
-
-@pytest.mark.parametrize('scenario', ['success', 'repeat', 'rejected', 'missing', 'redis_failure'])
+@pytest.mark.parametrize('scenario', [
+    'success', 'repeat', 'rejected', 'missing', 'wrong_token',
+    'redis_failure', 'repeat_redis_failure', 'absent_cache',
+])
 async def test_payment_invalidates_dashboard(
-        scenario, bother_user, client, session_pool, redis_session, monkeypatch):
+        scenario, bother_user, client, session_pool, redis_session, monkeypatch, caplog):
     headers, other_headers = bother_user
     me = await client.get('/auth/me', headers=headers)
     assert me.status_code == 200, me.text
@@ -39,17 +38,26 @@ async def test_payment_invalidates_dashboard(
     }, headers=headers)
     assert response.status_code == 201, response.text
     invoice_id = response.json()['id']
-    initial_paid_at = datetime(2026, 1, 1, tzinfo=timezone.utc) if scenario == 'repeat' else None
+    issued = await client.post(f'/invoices/{invoice_id}/issue', headers=headers)
+    assert issued.status_code == 200, issued.text
+    is_repeat = scenario in ('repeat', 'repeat_redis_failure')
+    redis_failure = scenario in ('redis_failure', 'repeat_redis_failure')
+    refused = scenario in ('rejected', 'missing', 'wrong_token')
+    initial_paid_at = datetime(2026, 1, 1, tzinfo=timezone.utc) if is_repeat else None
     async with session_pool() as session:
         async with session.begin():
             invoice = await session.get(Invoice, invoice_id)
-            invoice.status = InvoiceStatus.PAID if scenario == 'repeat' else InvoiceStatus.ISSUED
-            invoice.issue_version = 1
-            invoice.is_paid = scenario == 'repeat'
+            invoice.status = InvoiceStatus.PAID if is_repeat else InvoiceStatus.ISSUED
+            invoice.is_paid = is_repeat
             invoice.paid_at = initial_paid_at
+            if is_repeat or scenario == 'rejected':
+                invoice.due_date = datetime.now(timezone.utc).date() - timedelta(days=1)
+            token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
+            secret = token.token_value
 
     key = f'dashboard:{user_id}'
-    await redis_session.set(key, 'old summary')
+    if scenario != 'absent_cache':
+        await redis_session.set(key, 'old summary', ex=60)
     await redis_session.set(other_key, 'other summary')
     original_delete = redis_session.delete
     deleted_keys = []
@@ -61,45 +69,49 @@ async def test_payment_invalidates_dashboard(
             assert saved.status == InvoiceStatus.PAID
             assert saved.paid_at is not None
         deleted_keys.extend(keys)
-        if scenario == 'redis_failure':
+        if redis_failure:
             raise RedisConnectionError('Controlled cache failure')
         return await original_delete(*keys)
 
     monkeypatch.setattr(redis_session, 'delete', checked_delete)
-    async with session_pool() as session:
-        arguments = {
-            'invoice_id': '00000000000000000000000000' if scenario == 'missing' else invoice_id,
-            'user_id': user_id, 'expected_issue_version': 0 if scenario == 'rejected' else 1,
-            'session': session, 'redis': redis_session,
-        }
-        if scenario == 'rejected':
-            with pytest.raises(ValueError):
-                await invoice_service.pay_invoice_with_cache(**arguments)
-        elif scenario == 'redis_failure':
-            with pytest.raises(RedisConnectionError):
-                await invoice_service.pay_invoice_with_cache(**arguments)
-        else:
-            result = await invoice_service.pay_invoice_with_cache(**arguments)
-            if scenario == 'missing':
-                assert result is None
-            else:
-                assert result.status == InvoiceStatus.PAID
-        assert not session.in_transaction()
+    # Подмена только Redis-зависимости маршрута; middleware продолжает работать
+    # со своим тестовым клиентом Redis. Бизнес-интерфейс остаётся HTTP.
+    from backend.app.main import app
 
-    assert deleted_keys == ([] if scenario in ('rejected', 'missing') else [key])
+    async def payment_redis():
+        yield redis_session
+
+    previous_override = app.dependency_overrides[get_redis]
+    app.dependency_overrides[get_redis] = payment_redis
+    target_id = '00000000000000000000000000' if scenario == 'missing' else invoice_id
+    supplied = 'incorrect-secret' if scenario == 'wrong_token' else secret
+    caplog.clear()
+    try:
+        response = await client.post(f'/invoices/{target_id}/{supplied}/pay')
+    finally:
+        app.dependency_overrides[get_redis] = previous_override
+    expected_code = 409 if scenario == 'rejected' else 404 if refused else 200
+    assert response.status_code == expected_code, response.text
+    if not refused:
+        assert response.json()['status'] == 'paid'
+        assert response.json()['can_pay'] is False
+    if redis_failure:
+        assert any(record.levelno >= 30 for record in caplog.records), 'Cache failure must be logged'
+
+    assert deleted_keys == ([] if refused else [key])
     assert await redis_session.get(other_key) == 'other summary'
     assert await redis_session.get(key) == (
-        None if scenario in ('success', 'repeat') else 'old summary'
+        'old summary' if refused or redis_failure else None
     )
     async with session_pool() as session:
         saved = await session.get(Invoice, invoice_id)
         assert saved.amount == Decimal('40.00')
         assert saved.issue_version == 1
-        if scenario in ('rejected', 'missing'):
+        if refused:
             assert saved.status == InvoiceStatus.ISSUED
             assert saved.paid_at is None
         else:
             assert saved.status == InvoiceStatus.PAID
             assert saved.paid_at is not None
-            if scenario == 'repeat':
+            if is_repeat:
                 assert saved.paid_at == initial_paid_at
