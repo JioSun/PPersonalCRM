@@ -1,11 +1,17 @@
 import logging
 from decimal import Decimal
+from email.message import EmailMessage
+from pathlib import Path
+from aiosmtplib import SMTPException, SMTPTimeoutError
 from typing import Sequence, Any
 
+import aiosmtplib
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...crud.client import get_client_by_id
 from ...models.utils import get_datetime_utc
 from ...schemas.invoice import InvoiceSecretRead
 from ...services.invoice import can_pay_invoice, pay_invoice_in_db
@@ -29,8 +35,13 @@ from ....app.schemas.invoice import (
     InvoiceRead,
     InvoiceUpdate,
 )
-from ....app.services.invoice import cancel_invoice_in_db, revoke_invoice_in_db, issue_invoice_in_db, \
-    delete_invoice_in_db, patch_invoice_in_db
+from ....app.services.invoice import (
+    cancel_invoice_in_db,
+    delete_invoice_in_db,
+    issue_invoice_in_db,
+    patch_invoice_in_db,
+    revoke_invoice_in_db,
+)
 
 router = APIRouter(prefix='/invoices', tags=['invoice'])
 logger = logging.getLogger(__name__)
@@ -151,7 +162,7 @@ async def get_invoice_payment_link(
     if not get_token:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Links are not match')
 
-    link = f"{settings.MAIN_URL.rstrip('/')}/invoices/{invoice_id}/{get_token.token_value}"
+    link = f"{settings.MAIN_URL.rstrip('/')}/pay/{invoice_id}/{get_token.token_value}"
 
     return {"payment_url": link}
 
@@ -257,11 +268,11 @@ async def issue_invoice(
     return InvoiceRead.model_validate(invoice)
 
 @router.get('/{invoice_id}/{token}', response_model=InvoiceSecretRead)
-async def generate_invoice_token(
+async def get_invoice_by_token(
         invoice_id: str,
         token: str,
         session: AsyncSession = Depends(get_db, use_cache=False),
-) -> Any:
+) -> InvoiceSecretRead:
     async with session.begin():
         current_token = await get_token_by_invoice_id(invoice_id=invoice_id, session=session)
 
@@ -299,7 +310,6 @@ async def generate_invoice_token(
 
     return InvoiceSecretRead.model_validate(data)
 
-
 @router.post('/{invoice_id}/{token}/pay', status_code=status.HTTP_200_OK, response_model=InvoiceSecretRead)
 async def pay_invoice(
         invoice_id: str,
@@ -307,56 +317,131 @@ async def pay_invoice(
         session: AsyncSession = Depends(get_db, use_cache=False),
         conn: Redis = Depends(get_redis),
 ) -> InvoiceSecretRead:
+        async with session.begin():
+            current_token = await get_token_by_invoice_id(invoice_id=invoice_id, session=session)
+
+            if not current_token:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+            if not current_token.token_value == token:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+            current_invoice = await session.get(Invoice, invoice_id)
+
+            if not current_invoice:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+            if current_invoice.status not in (InvoiceStatus.PAID, InvoiceStatus.ISSUED):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+            if not current_invoice.issue_version == current_token.issue_version:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+            current_date = get_datetime_utc().date()
+            is_overdue = current_invoice.status is InvoiceStatus.ISSUED and current_date > current_invoice.due_date
+
+            if is_overdue:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Invoice is overdue')
+
+        try:
+            invoice = await pay_invoice_in_db(
+                invoice_id=invoice_id,
+                expected_issue_version=current_token.issue_version,
+                user_id=current_invoice.user_id,
+                session=session
+            )
+
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
+
+        if not invoice:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+
+        data = {
+            "number": invoice.number,
+            "label": invoice.label,
+            "amount": invoice.amount,
+            "currency": invoice.currency,
+            "due_date": invoice.due_date,
+            "status": invoice.status,
+            "paid_at": invoice.paid_at,
+            "is_overdue": is_overdue,
+            "can_pay": can_pay_invoice(invoice.status) and not is_overdue
+        }
+        try:
+            await conn.delete(f'dashboard:{invoice.user_id}')
+        except RedisError:
+            logger.exception("Ошибка очистки invoice_id%s", invoice_id)
+        return InvoiceSecretRead.model_validate(data)
+
+@router.post('/{invoice_id}/{token}/send', status_code=status.HTTP_200_OK)
+async def send_email(
+        invoice_id: str,
+        token: str,
+        client_id: str,
+        current_user: User = Depends(get_current_active_user),
+        session: AsyncSession = Depends(get_db, use_cache=False),
+) -> Any:
     async with session.begin():
+        current_client = await get_client_by_id(client_id=client_id, user_id=current_user.id, session=session)
+
+        if current_client is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Email not send')
+
+
         current_token = await get_token_by_invoice_id(invoice_id=invoice_id, session=session)
 
         if not current_token:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Email not send')
 
         if not current_token.token_value == token:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Token are not match')
 
-        current_invoice = await session.get(Invoice, invoice_id)
+        if not invoice_id == current_token.invoice_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Invoice id are not match')
+
+
+        current_invoice = await get_invoice_by_id(invoice_id=invoice_id, user_id=current_user.id, session=session)
 
         if not current_invoice:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Email not send')
 
-        if current_invoice.status not in (InvoiceStatus.PAID, InvoiceStatus.ISSUED):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+        if not current_client.id == current_invoice.client_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Email not send')
+    payment_url = f"{settings.MAIN_URL.rstrip('/')}/pay/{invoice_id}/{current_token.token_value}"
+    msg = EmailMessage()
 
-        if not current_invoice.issue_version == current_token.issue_version:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
+    msg['Subject'] = "PersonalCRM: вам пришёл счёт"
+    msg['From'] = settings.EMAIL
+    if current_client.email is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Email not sent')
 
-        current_date = get_datetime_utc().date()
-        is_overdue = current_invoice.status is InvoiceStatus.ISSUED and current_date > current_invoice.due_date
+    msg['To'] = current_client.email
 
-        if is_overdue:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Invoice is overdue')
+    with open(Path(__file__).resolve().parent / "templates" / "template_text.txt", 'r', encoding='utf-8') as f:
+        template_text = f.read().format(
+            label=current_invoice.label,
+            amount=f"{current_invoice.amount:.2f}",
+            currency=current_invoice.currency,
+            number=current_invoice.number,
+            due_date=current_invoice.due_date.isoformat(),
+            payment_url=payment_url,
+        )
+    msg.set_content(template_text)
 
     try:
-        invoice = await pay_invoice_in_db(
-            invoice_id=invoice_id,
-            expected_issue_version=current_token.issue_version,
-            user_id=current_invoice.user_id,
-            session=session
+        await aiosmtplib.send(
+            msg,
+            hostname=settings.EMAIL_HOST,
+            port=settings.EMAIL_PORT,
+            password=settings.PASSWORD,
+            timeout=30,
+            username=settings.EMAIL,
+            start_tls=True
         )
 
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
-
-    if not invoice:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invoice not found')
-
-    data = {
-        "number": invoice.number,
-        "label": invoice.label,
-        "amount": invoice.amount,
-        "currency": invoice.currency,
-        "due_date": invoice.due_date,
-        "status": invoice.status,
-        "paid_at": invoice.paid_at,
-        "is_overdue": is_overdue,
-        "can_pay": can_pay_invoice(invoice.status) and not is_overdue
-    }
-    await conn.delete(f'dashboard:{invoice.user_id}')
-    return InvoiceSecretRead.model_validate(data)
+        return {'credits': f'Письмо принято почтовым сервером: {current_client.email}'}
+    except SMTPTimeoutError:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail='Не удалось подтвердить отправку письма. Проверьте почту перед повторной отправкой')
+    except SMTPException as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail='Ошибка при передаче письма почтовому серверу')

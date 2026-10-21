@@ -114,7 +114,10 @@ async def test_deal_limit_http(
 
 async def test_deal_limit_after_concurrent_issue(
         active_user, client, session_pool, monkeypatch):
-    from backend.app.services.invoice import get_invoice_for_transition, issue_invoice_in_db
+    from backend.app.services.invoice import (
+        get_invoice_for_transition,
+        issue_invoice_in_db,
+    )
 
     headers, login_response = active_user
     me = await client.get('/auth/me', headers=headers)

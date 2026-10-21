@@ -14,9 +14,18 @@ from backend.app.crud.deal import (
     get_deals_by_query,
     update_deal_by_id,
 )
-from backend.app.crud.invoice import get_invoice_by_engaged_amount, get_invoice_by_paid_status
+from backend.app.crud.invoice import (
+    get_invoice_by_engaged_amount,
+    get_invoice_by_paid_status,
+)
 from backend.app.models.database_models import User
-from backend.app.schemas.deal import DealCreate, DealRead, DealUpdate, DealDetailRead, DealListRead
+from backend.app.schemas.deal import (
+    DealCreate,
+    DealDetailRead,
+    DealListRead,
+    DealRead,
+    DealUpdate,
+)
 
 router = APIRouter(prefix='/deals', tags=['deal'])
 logger = logging.getLogger(__name__)

@@ -1,9 +1,8 @@
 import logging
-from pathlib import Path
 
 from fastapi import FastAPI
 
-from backend.app.api.routes import clients, dashboards, deals, invoices, job, users
+from backend.app.api.routes import clients, dashboards, deals, invoices, users, pay
 from backend.app.core.redis_py import get_redis
 from backend.app.logger import setup_logging
 from backend.app.middlewares.rate_limiting import rate_limit_middleware
@@ -38,7 +37,7 @@ app.include_router(
 )
 
 app.include_router(
-    job.router,
+    pay.router,
 )
 
 app.middleware('http')(rate_limit_middleware)

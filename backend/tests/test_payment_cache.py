@@ -13,6 +13,7 @@ from backend.app.models.database_models import Invoice, Token
 @pytest.mark.parametrize('scenario', [
     'success', 'repeat', 'rejected', 'missing', 'wrong_token',
     'redis_failure', 'repeat_redis_failure', 'absent_cache',
+    'service_rejected', 'service_missing',
 ])
 async def test_payment_invalidates_dashboard(
         scenario, bother_user, client, session_pool, redis_session, monkeypatch, caplog):
@@ -42,7 +43,7 @@ async def test_payment_invalidates_dashboard(
     assert issued.status_code == 200, issued.text
     is_repeat = scenario in ('repeat', 'repeat_redis_failure')
     redis_failure = scenario in ('redis_failure', 'repeat_redis_failure')
-    refused = scenario in ('rejected', 'missing', 'wrong_token')
+    refused = scenario in ('rejected', 'missing', 'wrong_token', 'service_rejected', 'service_missing')
     initial_paid_at = datetime(2026, 1, 1, tzinfo=timezone.utc) if is_repeat else None
     async with session_pool() as session:
         async with session.begin():
@@ -74,6 +75,13 @@ async def test_payment_invalidates_dashboard(
         return await original_delete(*keys)
 
     monkeypatch.setattr(redis_session, 'delete', checked_delete)
+    if scenario in ('service_rejected', 'service_missing'):
+        async def unavailable_payment(**kwargs):
+            if scenario == 'service_rejected':
+                raise ValueError('Payment rejected after initial link checks')
+            return None
+
+        monkeypatch.setattr('backend.app.api.routes.invoices.pay_invoice_in_db', unavailable_payment)
     # Подмена только Redis-зависимости маршрута; middleware продолжает работать
     # со своим тестовым клиентом Redis. Бизнес-интерфейс остаётся HTTP.
     from backend.app.main import app
@@ -90,7 +98,7 @@ async def test_payment_invalidates_dashboard(
         response = await client.post(f'/invoices/{target_id}/{supplied}/pay')
     finally:
         app.dependency_overrides[get_redis] = previous_override
-    expected_code = 409 if scenario == 'rejected' else 404 if refused else 200
+    expected_code = 409 if scenario in ('rejected', 'service_rejected') else 404 if refused else 200
     assert response.status_code == expected_code, response.text
     if not refused:
         assert response.json()['status'] == 'paid'

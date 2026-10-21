@@ -10,8 +10,12 @@ from backend.app.api.dependencies import get_current_active_user
 from backend.app.core.db import get_db
 from backend.app.core.redis_py import get_redis
 from backend.app.crud.client import get_clients_sum
-from backend.app.crud.dashboard import get_dashboard_data, get_overdue_invoices, get_deals_by_status, \
-    get_clients_count_by_user_id
+from backend.app.crud.dashboard import (
+    get_clients_count_by_user_id,
+    get_dashboard_data,
+    get_deals_by_status,
+    get_overdue_invoices,
+)
 from backend.app.models.constants import DealStatus
 from backend.app.models.dashboard import DashboardResponse
 from backend.app.models.database_models import User

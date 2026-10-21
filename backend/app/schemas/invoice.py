@@ -7,8 +7,8 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    computed_field,
     field_validator,
-    computed_field
 )
 
 from ...app.models.constants import InvoiceStatus

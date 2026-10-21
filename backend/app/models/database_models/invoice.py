@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from backend.app.models.database_models.client import Client
     from backend.app.models.database_models.deal import Deal
     from backend.app.models.database_models.user import User
+
     from ....app.models.database_models.token import Token
 
 

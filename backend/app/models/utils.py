@@ -1,7 +1,8 @@
+import secrets
 from datetime import UTC, datetime
 
 from ulid import ULID
-import secrets
+
 
 def generate_ulid():
     return str(ULID())

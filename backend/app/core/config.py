@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # GEMINI
     GEMINI_API_KEY: str
-
+    GENERAL_TIMEOUT: int
     # Web
     MAIN_URL: str
 

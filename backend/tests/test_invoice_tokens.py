@@ -2,12 +2,134 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 import pytest
+from fastapi.exceptions import ResponseValidationError
 from sqlalchemy import select
 
 from backend.app.models.constants import InvoiceStatus
 from backend.app.models.database_models import Invoice, Token
 from backend.app.services import invoice as invoice_service
-from fastapi.exceptions import ResponseValidationError
+
+
+@pytest.mark.parametrize('action', ['revoke', 'reissue'])
+async def test_payment_change_after_link_check(
+        action, token_invoice, client, session_pool, redis_session, monkeypatch):
+    invoice_id, user_id = token_invoice
+    async with session_pool() as session:
+        await invoice_service.issue_invoice_in_db(invoice_id, user_id, session)
+    async with session_pool() as session:
+        token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
+        secret = token.token_value
+    original = invoice_service.pay_invoice_in_db
+
+    async def change_before_payment(**kwargs):
+        # Детерминированный порядок двух реальных транзакций, не тест ожидания блокировки.
+        assert kwargs['expected_issue_version'] == 1
+        assert not kwargs['session'].in_transaction()
+        async with session_pool() as other_session:
+            await invoice_service.revoke_invoice_in_db(invoice_id, user_id, other_session)
+        if action == 'reissue':
+            async with session_pool() as other_session:
+                await invoice_service.issue_invoice_in_db(invoice_id, user_id, other_session)
+        return await original(**kwargs)
+
+    monkeypatch.setattr('backend.app.api.routes.invoices.pay_invoice_in_db', change_before_payment)
+    key = f'dashboard:{user_id}'
+    await redis_session.set(key, 'cached summary')
+    response = await client.post(f'/invoices/{invoice_id}/{secret}/pay')
+    # Ссылка прошла начальную проверку, затем возник конфликт операции.
+    assert response.status_code == 409, response.text
+    assert await redis_session.get(key) == 'cached summary'
+    async with session_pool() as session:
+        invoice = await session.get(Invoice, invoice_id)
+        assert invoice.status == (InvoiceStatus.DRAFT if action == 'revoke' else InvoiceStatus.ISSUED)
+        assert invoice.issue_version == (1 if action == 'revoke' else 2)
+        assert invoice.paid_at is None
+        assert invoice.is_paid is False
+
+
+async def test_payment_checks_time_after_locks(
+        token_invoice, client, session_pool, redis_session, monkeypatch):
+    invoice_id, user_id = token_invoice
+    today = datetime.now(timezone.utc).date()
+    before_midnight = datetime.combine(today, datetime.max.time(), tzinfo=timezone.utc)
+    after_midnight = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    clock = {'now': before_midnight}
+    async with session_pool() as session:
+        async with session.begin():
+            invoice = await session.get(Invoice, invoice_id)
+            invoice.due_date = today
+    async with session_pool() as session:
+        await invoice_service.issue_invoice_in_db(invoice_id, user_id, session)
+    async with session_pool() as session:
+        token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
+        secret = token.token_value
+
+    class ControlledDatetime:
+        @classmethod
+        def now(cls, tz):
+            assert tz == timezone.utc
+            return clock['now']
+
+    original = invoice_service.get_invoice_for_transition
+
+    async def advance_after_locks(**kwargs):
+        invoice = await original(**kwargs)
+        # Часы меняются после настоящих блокирующих SELECT, без перевода часов БД.
+        clock['now'] = after_midnight
+        return invoice
+
+    monkeypatch.setattr('backend.app.api.routes.invoices.get_datetime_utc', lambda: clock['now'])
+    monkeypatch.setattr(invoice_service, 'datetime', ControlledDatetime)
+    monkeypatch.setattr(invoice_service, 'get_invoice_for_transition', advance_after_locks)
+    key = f'dashboard:{user_id}'
+    await redis_session.set(key, 'cached summary')
+    response = await client.post(f'/invoices/{invoice_id}/{secret}/pay')
+    assert response.status_code == 409, response.text
+    assert await redis_session.get(key) == 'cached summary'
+    async with session_pool() as session:
+        invoice = await session.get(Invoice, invoice_id)
+        assert invoice.status == InvoiceStatus.ISSUED
+        assert invoice.paid_at is None
+
+
+async def test_payment_retry_after_committed_response_failure(
+        token_invoice, client, session_pool, redis_session, monkeypatch):
+    invoice_id, user_id = token_invoice
+    async with session_pool() as session:
+        await invoice_service.issue_invoice_in_db(invoice_id, user_id, session)
+    async with session_pool() as session:
+        token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
+        secret = token.token_value
+    original = invoice_service.pay_invoice_in_db
+
+    async def fail_after_commit(**kwargs):
+        await original(**kwargs)
+        raise ConnectionError('Simulated failure after payment commit')
+
+    key = f'dashboard:{user_id}'
+    await redis_session.set(key, 'cached summary')
+    monkeypatch.setattr('backend.app.api.routes.invoices.pay_invoice_in_db', fail_after_commit)
+    # Имитируем сбой сервера после commit до ответа, не реальный сетевой разрыв.
+    with pytest.raises(ConnectionError, match='Simulated failure after payment commit'):
+        await client.post(f'/invoices/{invoice_id}/{secret}/pay')
+    async with session_pool() as session:
+        saved = await session.get(Invoice, invoice_id)
+        assert saved.status == InvoiceStatus.PAID
+        paid_at = saved.paid_at
+        assert paid_at is not None
+        version = saved.issue_version
+        amount = saved.amount
+    assert await redis_session.get(key) == 'cached summary'
+    monkeypatch.setattr('backend.app.api.routes.invoices.pay_invoice_in_db', original)
+    response = await client.post(f'/invoices/{invoice_id}/{secret}/pay')
+    assert response.status_code == 200, response.text
+    assert datetime.fromisoformat(response.json()['paid_at']) == paid_at
+    assert response.json()['can_pay'] is False
+    assert await redis_session.get(key) is None
+    async with session_pool() as session:
+        saved = await session.get(Invoice, invoice_id)
+        assert saved.status == InvoiceStatus.PAID
+        assert (saved.paid_at, saved.issue_version, saved.amount) == (paid_at, version, amount)
 
 
 @pytest.mark.parametrize('scenario, expected_code', [
@@ -100,6 +222,12 @@ async def test_public_invoice_read(
             f'/invoices/{invoice_id}/payment-link', headers=active_user[0])
         assert response.status_code == 200
         path = urlsplit(response.json()['payment_url']).path
+        assert path == f'/pay/{invoice_id}/{secret}'
+        page = await client.get(path)
+        assert page.status_code == 200, page.text
+        assert 'text/html' in page.headers['content-type']
+        # Браузер затем запрашивает JSON отдельно; HTTP-клиент JS не исполняет.
+        path = f'/invoices/{invoice_id}/{secret}'
     try:
         response = await client.get(path)
     except ResponseValidationError:

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демонстрационная оплата</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #eef2f7 0%, #c3cfe2 100%);
+            padding: 20px;
+        }
+
+        .payment-card {
+            background: #ffffff;
+            min-width: 360px;
+            width: fit-content;
+            max-width: 95vw;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05);
+            padding: 36px 32px;
+            text-align: center;
+            transition: all 0.35s ease;
+        }
+
+        .payment-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 25px 50px rgba(15, 23, 42, 0.12);
+        }
+
+        .badge {
+            display: inline-block;
+            background: #eef2ff;
+            color: #4f46e5;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 999px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        h1 {
+            color: #111827;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        p.description {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 340px;
+            margin: 0 auto 24px;
+        }
+
+        .amount-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .invoice-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 16px;
+            margin-bottom: 16px;
+            border-bottom: 1px dashed #cbd5e1;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            gap: 16px;
+        }
+
+        .detail-title {
+            color: #64748b;
+        }
+
+        .detail-value {
+            color: #1e293b;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .amount-summary {
+            text-align: center;
+        }
+
+        .amount-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .amount-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        /* Контейнер для кнопок, чтобы вторая кнопка вылетала строго из-под первой */
+        .buttons-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .pay-button {
+            position: relative;
+            z-index: 2; /* Основная кнопка всегда поверх вылетающей */
+            display: inline-block;
+            text-decoration: none;
+            min-width: 220px;
+            width: 220px;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 14px;
+            padding: 16px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+
+            transition: width 0.4s ease, background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .pay-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+        }
+
+        .pay-button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .pay-button:disabled {
+            cursor: default;
+        }
+
+        /* Жёлтое состояние кнопки (счёт уже оплачен ранее) */
+        .pay-button.warning {
+            background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+            color: #1f2937;
+            box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35);
+        }
+
+        /* Красное состояние кнопки (ошибка) */
+        .pay-button.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+        }
+
+        /* Зелёное состояние (при успешной оплате сейчас) */
+        .pay-button.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        }
+
+        /* Серое состояние (просрочен) */
+        .pay-button.overdue {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(107, 114, 128, 0.3);
+        }
+
+        /* Кнопка "Обновить страницу", которая изначально спрятана под основной кнопкой */
+        .refresh-button {
+            position: relative;
+            z-index: 1;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            max-width: 100%;
+
+            background: #f1f5f9;
+            color: transparent; /* Прячем текст во время спуска, чтобы он не обрезался некрасиво */
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+
+            /* Свернутое состояние позади основной кнопки */
+            max-height: 0;
+            padding: 0 28px;
+            margin-top: 0;
+            opacity: 0;
+            transform: translateY(-28px);
+            pointer-events: none;
+
+            transition:
+                transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                max-height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                margin-top 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                padding 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.35s ease,
+                width 0.4s ease,
+                color 0.25s ease,
+                background 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+        /* Фаза 1: Кнопка вылетела вниз, сохраняя ширину основной кнопки */
+        .refresh-button.drop-down {
+            max-height: 60px;
+            padding: 14px 28px;
+            margin-top: 12px;
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+        }
+
+        /* Фаза 2: После спуска проявляется текст */
+        .refresh-button.show-text {
+            color: #334155;
+        }
+
+        .refresh-button:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+        }
+
+        .refresh-button:active {
+            transform: scale(0.98);
+        }
+
+        .status-message {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #059669;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status-message.error-text {
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="payment-card">
+        <span class="badge">Тестовый режим</span>
+        <h1>Демонстрационная оплата</h1>
+        <p class="description">
+            Это демонстрационная страница. При нажатии на кнопку реальные средства не списываются.
+        </p>
+
+        <div class="amount-box">
+            <div class="invoice-details">
+                <div class="detail-row">
+                    <span class="detail-title">Номер счёта</span>
+                    <span id="number-value" class="detail-value">Загрузка...</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-title">Назначение</span>
+                    <span id="label-value" class="detail-value">Загрузка...</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-title">Оплатить до</span>
+                    <span id="deadline" class="detail-value">Загрузка...</span>
+                </div>
+            </div>
+
+            <div class="amount-summary">
+                <div class="amount-label">К оплате</div>
+                <div id="amount-value" class="amount-value">Загрузка...</div>
+            </div>
+        </div>
+
+        <div class="buttons-wrapper">
+            <button id="pay-btn" disabled class="pay-button" onclick="handleDemoPayment(this)">
+                Оплатить
+            </button>
+
+            <button id="refresh-btn" class="refresh-button" onclick="window.location.reload()">
+                ↻ Обновите страницу
+            </button>
+        </div>
+
+        <div id="status" class="status-message">
+            ✓ Демонстрационный платеж успешно выполнен!
+        </div>
+    </div>
+
+    <script>
+        const currentPath = window.location.pathname;
+        const segments = currentPath.split('/').filter(segment => segment !== "");
+        const token = segments[segments.length - 1];
+        const invoice_id = segments[segments.length - 2];
+        const button = document.getElementById('pay-btn');
+        const refreshBtn = document.getElementById('refresh-btn');
+
+        function updateButtonSmoothly(button, newText, stateClass = null) {
+            // 1. Запоминаем текущую ширину кнопки в пикселях
+            const startWidth = button.offsetWidth;
+
+            // 2. Меняем текст и добавляем нужный класс цвета
+            button.textContent = newText;
+            if (stateClass !== null) {
+                button.classList.remove('warning', 'success', 'error', 'overdue');
+                if (stateClass) {
+                    button.classList.add(stateClass);
+                }
+            }
+
+            button.style.width = 'auto';
+            const targetWidth = button.offsetWidth;
+
+            button.style.width = startWidth + 'px';
+            void button.offsetWidth; // Принудительный reflow
+
+            requestAnimationFrame(() => {
+                button.style.width = targetWidth + 'px';
+            });
+
+            return targetWidth; // Возвращаем итоговую ширину, чтобы кнопка "Обновить" могла её перенять
+        }
+
+        // Функция вылета кнопки "Обновить страницу" вниз и последующего расширения
+        function showRefreshButton(initialWidth) {
+            // Сбрасываем классы на случай повторного вызова
+            refreshBtn.classList.remove('drop-down', 'show-text');
+
+            // 1. Задаём кнопке обновления точно такую же ширину, как у кнопки "Ошибка"
+            refreshBtn.style.minWidth = '0px';
+            refreshBtn.style.width = initialWidth + 'px';
+            void refreshBtn.offsetWidth; // Принудительный reflow
+
+            // 2. Запускаем спуск кнопки вниз из-под основной кнопки
+            requestAnimationFrame(() => {
+                refreshBtn.classList.add('drop-down');
+
+                // 3. Ждём завершения спуска (450 мс), после чего плавно расширяем под текст "Обновить страницу"
+                setTimeout(() => {
+                    const currentWidth = refreshBtn.offsetWidth;
+
+                    // Замеряем ширину под полный текст "↻ Обновить страницу"
+                    refreshBtn.style.width = 'auto';
+                    const fullTextWidth = refreshBtn.offsetWidth;
+
+                    // Возвращаем ширину перед анимацией
+                    refreshBtn.style.width = currentWidth + 'px';
+                    void refreshBtn.offsetWidth;
+
+                    // Плавно растягиваем по горизонтали и проявляем текст
+                    requestAnimationFrame(() => {
+                        refreshBtn.classList.add('show-text');
+                        refreshBtn.style.width = fullTextWidth + 'px';
+                    });
+                }, 450);
+            });
+        }
+
+        async function getInvoice(invoice_id, token) {
+            const response = await fetch(`/invoices/${invoice_id}/${token}`, { method: "GET" });
+            if (!response.ok) {
+                throw new Error(`Ошибка сервера: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        async function initPage() {
+            try {
+                if (!invoice_id || !token) {
+                    throw new Error("Неверный URL страницы");
+                }
+
+                button.disabled = true;
+                const data = await getInvoice(invoice_id, token);
+
+               if (data.status === 'paid') {
+                    button.disabled = true;
+                    updateButtonSmoothly(button, 'Этот счёт уже был оплачен ранее', 'warning');
+                } else if (data.is_overdue === true) {
+                    button.disabled = true;
+                    updateButtonSmoothly(button, 'Счёт просрочен', 'overdue');
+                } else if (data.can_pay === true) {
+                    button.disabled = false;
+                }
+
+                const amountEl = document.getElementById('amount-value');
+                const payBtn = document.getElementById('pay-btn');
+                const labelEl = document.getElementById('label-value');
+                const deadlineEl = document.getElementById('deadline');
+                const numValue = document.getElementById('number-value');
+
+                amountEl.textContent = `${data.amount} ${data.currency}`;
+                labelEl.textContent = `${data.label}`;
+                deadlineEl.textContent = `${data.due_date}`;
+                numValue.textContent = `${data.number}`;
+
+
+            } catch (error) {
+                console.error("Ошибка:", error);
+                document.body.innerHTML = `<h1>Ошибка загрузки инвойса</h1><p>${error.message}</p>`;
+            }
+        }
+
+        async function handleDemoPayment(button) {
+            const statusEl = document.getElementById('status');
+            statusEl.style.display = 'none';
+            statusEl.classList.remove('error-text');
+
+            button.disabled = true;
+            button.style.opacity = '0.8';
+            updateButtonSmoothly(button, 'Обработка...');
+
+            try {
+                if (!invoice_id || !token) {
+                    throw new Error("Неверный URL страницы");
+                }
+
+                const response = await fetch(`/invoices/${invoice_id}/${token}/pay`, { method: "POST" });
+
+                button.style.opacity = '1';
+
+                if (response.status >= 500) {
+                    button.disabled = true;
+                    const mainBtnWidth = updateButtonSmoothly(button, 'Ошибка', 'error');
+                    showRefreshButton(mainBtnWidth);
+
+                    statusEl.textContent = "Не удалось подтвердить результат оплаты";
+                    statusEl.classList.add('error-text');
+                    statusEl.style.display = 'block';
+                    return;
+                } else if ([404, 409].includes(response.status)) {
+                    button.disabled = true;
+                    updateButtonSmoothly(button, 'Ошибка', 'error');
+
+                    statusEl.textContent = "Проблемы со счётом, проверьте данные";
+                    statusEl.classList.add('error-text');
+                    statusEl.style.display = 'block';
+                } else if (response.ok === true) {
+                    button.disabled = true;
+                    updateButtonSmoothly(button, 'Оплачено', 'success');
+                    statusEl.textContent = '✓ Демонстрационный платеж успешно выполнен!';
+                    statusEl.style.display = 'block';
+                    return;
+                } else {
+                    updateButtonSmoothly(button, 'Ошибка', 'error');
+
+                    statusEl.textContent = "Неизвестная ошибка";
+                    statusEl.classList.add('error-text');
+                    statusEl.style.display = 'block';
+                    return;
+                }
+
+            } catch (error) {
+                console.error("Ошибка:", error);
+                button.style.opacity = '1';
+                const mainBtnWidth = updateButtonSmoothly(button, 'Ошибка соединения', 'error');
+                showRefreshButton(mainBtnWidth);
+
+                statusEl.textContent = `Не удалось получить результат: ${error.message}`;
+                statusEl.classList.add('error-text');
+                statusEl.style.display = 'block';
+            }
+        }
+
+        initPage();
+    </script>
+
+</body>
+</html>

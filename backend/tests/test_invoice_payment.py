@@ -1,15 +1,19 @@
 import asyncio
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
 
-from .conftest import session_pool
 from ..app.models.constants import InvoiceStatus
 from ..app.models.database_models import Invoice
-from ..app.services.invoice import get_invoice_for_transition, pay_invoice, pay_invoice_in_db, revoke_invoice_in_db, \
-    issue_invoice_in_db
+from ..app.services.invoice import (
+    get_invoice_for_transition,
+    issue_invoice_in_db,
+    pay_invoice,
+    pay_invoice_in_db,
+    revoke_invoice_in_db,
+)
 
 
 @pytest.mark.parametrize('due_date', [date(2026, 10, 11), date(2026, 10, 12)])

@@ -1,5 +1,47 @@
 # Материалы по проекту
 
+### 3.4.4 — отдельный лимит AI-запросов
+
+- [ ] При необходимости: [Redis — INCR](https://redis.io/docs/latest/commands/incr/), только Pattern: Rate limiter и первый пример Rate limiter 1. Для текущего участка использовать существующий check_rate_limit; новый limiter/Lua не требуется. Общий лимит IP и лимит AI по пользователю имеют разные ключи.
+
+### 3.4.4 — исчерпанные повторы AI
+
+- [ ] [Tenacity — Error Handling](https://tenacity.readthedocs.io/en/latest/#error-handling): только раздел Error Handling до следующего заголовка, включая reraise=True. По умолчанию после исчерпания попыток выбрасывается RetryError; reraise=True сохраняет последнее исходное исключение. Выбор остаётся пользователю.
+
+### 3.4.4 — общий таймаут AI
+
+- [ ] [Python — asyncio.timeout](https://docs.python.org/3.12/library/asyncio-task.html#asyncio.timeout). Описание и два первых примера, до описания класса asyncio.Timeout. Обратить внимание: async context manager, отмена ожидаемой операции, TimeoutError ловится снаружи контекста. Один контекст вокруг всей операции включает и паузы повторов; контекст внутри каждой попытки задаёт другой бюджет. Не гарантия прекращения вычислений на удалённом сервере.
+
+### 3.4.4 — заполнение шаблона запроса AI
+
+- [ ] [Python — Format String Syntax](https://docs.python.org/3.12/library/string.html#format-string-syntax): вступление до формальной грамматики, особенно {{ и }} для буквальных скобок. При вставке примера JSON в шаблон его скобки нужно экранировать; подставляемые значения повторно не форматируются. Остальную страницу читать не требуется.
+
+### 3.4.2 — ограничения значений и сочетания полей
+
+- [ ] [Pydantic — Fields](https://docs.pydantic.dev/latest/concepts/fields/): только Numeric Constraints и Decimal Constraints. Сопоставить с уже существующими DealName, DealCreate и DealUpdate в schemas/deal.py.
+- [ ] [Pydantic — Model validators](https://docs.pydantic.dev/latest/concepts/validators/#model-validators): вступление и первый пример After validators; before/wrap пока пропустить. Нужен для правил, зависящих сразу от нескольких полей; использовать именно этот механизм не обязательно.
+
+### 3.4.2 — ошибка разбора ответа провайдера
+
+- [ ] [Pydantic — Validating data](https://docs.pydantic.dev/latest/concepts/models/#validating-data): описание model_validate_json и примеры его ValidationError (невалидный JSON и неверные типы). Остановиться перед Validating data with context. Важное различие: ValidationError внешнего ответа здесь превращаем в 502, это не RequestValidationError входного запроса FastAPI.
+
+## 3.4.2 — безопасный выбор сделки из ответа AI
+
+- [ ] [Python — Common Sequence Operations](https://docs.python.org/3.12/library/stdtypes.html#common-sequence-operations): только строка таблицы s[i] и примечания 1–2 о начале индексации и отрицательных индексах. Цель: -1 выбирает последний элемент, а не вызывает ошибку.
+- [ ] При необходимости повторить HTTPException из материалов 3.4.1. Ответ внешнего провайдера, непригодный для обработки, в этом участке возвращает 502; неверный вход пользователя остаётся 422.
+
+## Текущая 3.4.1 — доступ и вход AI-заметки
+
+- [ ] Только при необходимости: [FastAPI — Use HTTPException](https://fastapi.tiangolo.com/tutorial/handling-errors/#use-httpexception). Читать Use HTTPException с Raise an HTTPException in your code, остановиться перед Add custom headers. Проверка должна останавливать запрос до внешнего вызова.
+- [ ] Только описание [Python — str.strip](https://docs.python.org/3.12/library/stdtypes.html#str.strip), без соседних методов. Строка из пробелов проходит min_length, но после strip становится пустой. Нового инструмента для этой задачи нет.
+
+## Текущая 3.3.6 — текстовое письмо, 20 октября 2026
+
+- [ ] [Python — email examples](https://docs.python.org/3.12/library/email.examples.html). Только первый пример от начала страницы до «Here's an example of how to send the entire contents of a directory». Изучить EmailMessage, set_content и заголовки Subject/From/To; чтение файла и отправку через smtplib переносить не требуется.
+- [ ] [aiosmtplib — The send Coroutine](https://aiosmtplib.readthedocs.io/en/stable/usage.html). Раздел The send Coroutine и подразделы о TLS/STARTTLS; multipart, HTML и OAuth пропустить. Цель: await send с EmailMessage, параметры SMTP и различие TLS/STARTTLS. Не включать use_tls и start_tls одновременно; режим определяется сервером. В сигнатуре send отдельно посмотреть timeout.
+
+Первый участок — письмо и SMTP-адаптер, без подключения к HTTP, реальных рассылок и повторов. Чтение пользователь отмечает сам.
+
 ## Актуальные материалы после изменения плана 16 октября 2026
 
 3.3.1 и 3.3.2 завершены. Celery отложен до будущих уведомлений/напоминаний. Старые материалы ниже сохранены с отметками как история: разделы 3.3.3, 3.3.4, 3.3.6 и проверки воркера 3.3.8 больше не являются обязательным чтением этого этапа. Актуальные восемь задач — в handoff-stage-3.3.md.
@@ -10,6 +52,9 @@
 - [ ] Повторение: [SQLAlchemy — Managing Transactions](https://docs.sqlalchemy.org/en/20/orm/session_transaction.html). Пример `with session.begin():` и следующий абзац; остановиться перед «The session may also be used in a commit-as-you-go approach». Цель: сервис оплаты уже владеет транзакцией; SELECT при проверке ссылки запускает autobegin, границы должны быть согласованы, без вложенного begin на занятой сессии.
 
 ### 3.3.4 — инвалидация кэша после оплаты
+
+- [ ] [Python — Logging HOWTO: When to use logging](https://docs.python.org/3.12/howto/logging.html#when-to-use-logging). Читать этот подраздел с таблицей уровней, остановиться перед **A simple example**. Цель: выбрать уровень события; сообщение журнала не является HTTP-ответом.
+- [ ] [Python — Logger.exception](https://docs.python.org/3.12/library/logging.html#logging.Logger.exception). Только описание метода, до следующего метода. Цель: запись ERROR с текущим traceback из обработчика исключения; не путать с raise.
 
 - [ ] Повторение при необходимости: [Redis — DEL](https://redis.io/docs/latest/commands/del/). Описание команды и **Examples**, остальные разделы пропустить. Отсутствующий ключ не является ошибкой; повторная инвалидация допустима.
 - [ ] [redis-py — Exceptions](https://redis.readthedocs.io/en/stable/exceptions.html). Только описания **ConnectionError**, **TimeoutError** и **RedisError**; остальные классы пропустить. Цель: отделить сбой Redis после commit от отказа оплаты и ошибок программирования, не маскировать все исключения общим перехватом.

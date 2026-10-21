@@ -1,9 +1,18 @@
 from decimal import Decimal
 
-from ..app.models.constants import InvoiceStatus
-from ..app.services.invoice import can_issue_invoice, can_revoke_invoice, can_cancel_invoice, cancel_invoice, revoke_invoice, issue_invoice
-from ..app.models.database_models.invoice import Invoice
 import pytest
+
+from ..app.models.constants import InvoiceStatus
+from ..app.models.database_models.invoice import Invoice
+from ..app.services.invoice import (
+    can_cancel_invoice,
+    can_issue_invoice,
+    can_revoke_invoice,
+    cancel_invoice,
+    issue_invoice,
+    revoke_invoice,
+)
+
 
 def test_status_draft_for_editing():
     assert can_issue_invoice(InvoiceStatus.DRAFT) == True

@@ -1,7 +1,7 @@
 import decimal
 from typing import Sequence
 
-from sqlalchemy import Select, and_, func, select, or_
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload

@@ -25,7 +25,7 @@ async def rate_limit_middleware(
 
     async with aclosing(redis_connection()) as connections:
             async for conn in connections:
-                    if request.url.path in ('/auth/login', '/auth/register'):
+                    if request.url.path in ('/auth/login', '/auth/register', ):
                         exceeded = await check_rate_limit(
                             conn, f'ratelimit:auth:{client_ip}', limit=5
                         )

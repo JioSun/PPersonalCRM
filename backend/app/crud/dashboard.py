@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import select, func, Row
+from sqlalchemy import Row, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.database_models import Invoice, Client, Deal
+from backend.app.models.database_models import Client, Deal, Invoice
 
 
 async def get_dashboard_data(user_id: str, current_datetime: datetime, session: AsyncSession) -> Row:

@@ -2,17 +2,18 @@ from datetime import datetime, timezone
 
 import pytest
 
-from .conftest import active_user, session_pool
 from ..app.models.constants import InvoiceStatus
 from ..app.models.database_models import Invoice
 from ..app.schemas.invoice import InvoiceUpdate
-from ..app.services.invoice import delete_invoice_in_db, patch_invoice_in_db
-from ..app.services.invoice import (get_invoice_for_transition,
-                                    cancel_invoice_in_db,
-                                    issue_invoice_in_db,
-                                    revoke_invoice_in_db,
-                                    cancel_invoice
-                                    )
+from ..app.services.invoice import (
+    cancel_invoice,
+    cancel_invoice_in_db,
+    delete_invoice_in_db,
+    get_invoice_for_transition,
+    issue_invoice_in_db,
+    patch_invoice_in_db,
+    revoke_invoice_in_db,
+)
 
 
 @pytest.mark.parametrize('action, initial_status, initial_version, expected_status, expected_version', [

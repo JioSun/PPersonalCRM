@@ -2,8 +2,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Sequence
 
-
-from sqlalchemy import select, func, Row
+from sqlalchemy import Row, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -124,9 +123,9 @@ async def update_deal_by_id(
 
 async def get_deals_by_client_id(
     client_id: str, user_id: str, session: AsyncSession
-) -> list[dict[str, Any]]:
+) -> list[Deal]:
     stmt = (
-        select(Deal.id, Deal.name, Deal.amount, Deal.deadline)
+        select(Deal)
         .where(Deal.client_id == client_id, Deal.user_id == user_id)
         .order_by(Deal.created_at)
         .offset(0)
@@ -134,7 +133,7 @@ async def get_deals_by_client_id(
     )
 
     result = await session.execute(stmt)
-    return [dict(row) for row in result.all()]
+    return result.scalars().all()
 
 
 async def get_deal_by_id_for_update(
