@@ -3,7 +3,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.app.models.constants import DealStatus
+from .constants import DealStatus
 
 
 class ClientSummary(BaseModel):
@@ -32,4 +32,3 @@ class DashboardResponse(BaseModel):
     overdue_count: int = Field(validation_alias='overdue_count')
     deals_by_status: dict[DealStatus, int]
     clients_count: int = 0
-

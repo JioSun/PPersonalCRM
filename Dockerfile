@@ -1,21 +1,39 @@
 FROM python:3.12-slim
 
+
+
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
-    libcairo2 \
-    libffi-dev \
-    shared-mime-info \
-    fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_NO_PROGRESS=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /usr/local/bin/uv
+
+RUN groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --no-create-home app
 
 COPY pyproject.toml uv.lock ./
 
-RUN pip install uv && uv sync --frozen
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
 
-ENV PYTHONUNBUFFERED=1
 COPY . .
 
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+RUN chown -R root:root /app \
+    && chmod -R u=rwX,go=rX /app
+
+ENV UV_CACHE_DIR="/home/app/.cache/uv"
+
+RUN mkdir -p /home/app/.cache/uv \
+    && chown -R app:app /home/app/.cache
+
+USER app
+
+CMD ["uv", "run","--no-cache", "--no-sync", "fastapi", "run", "backend/app/main.py", "--host", "0.0.0.0", "--port", "8000"]

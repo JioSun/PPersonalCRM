@@ -5,7 +5,7 @@ from zoneinfo import available_timezones
 import phonenumbers
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from backend.app.models.constants import ClientStatus
+from ..models.constants import ClientStatus
 
 
 class ClientValidators:

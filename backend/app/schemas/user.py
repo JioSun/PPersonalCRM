@@ -9,7 +9,8 @@ class UserFields(BaseModel):
     email: EmailStr
     full_name: str
     username: str
-    timezone: str = "UTC"
+    timezone: str = 'UTC'
+
 
 class UserBase(UserFields):
     pass

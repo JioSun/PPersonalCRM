@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.models.database_models.base import Base, IdMixin, TimestampMixin
+from .base import Base, IdMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from backend.app.models.database_models.client import Client
-    from backend.app.models.database_models.deal import Deal
-    from backend.app.models.database_models.invoice import Invoice
+    from .client import Client
+    from .deal import Deal
+    from .invoice import Invoice
 
 
 class User(Base, IdMixin, TimestampMixin):

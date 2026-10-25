@@ -10,8 +10,8 @@ from sqlalchemy.orm import (
     mapped_column,
 )
 
-from backend.app.models.constants import ClientStatus, DealStatus, InvoiceStatus
-from backend.app.models.utils import generate_ulid
+from ..constants import ClientStatus, DealStatus, InvoiceStatus
+from ..utils import generate_ulid
 
 
 class Base(DeclarativeBase):

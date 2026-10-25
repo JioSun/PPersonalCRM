@@ -5,8 +5,8 @@ from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import settings
-from backend.app.models.database_models import User
+from ..models.database_models import User
+from .config import settings
 
 passwordHash = PasswordHash.recommended()
 

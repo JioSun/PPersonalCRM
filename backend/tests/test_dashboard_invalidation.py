@@ -1,22 +1,36 @@
 import pytest
 
 
-@pytest.mark.parametrize('action', [
-    'client_create', 'client_patch', 'deal_create', 'deal_patch',
-    'invoice_create', 'invoice_patch', 'invoice_delete',
-    'issue', 'revoke', 'cancel', 'rejected_issue', 'foreign_patch',
-])
+@pytest.mark.parametrize(
+    'action',
+    [
+        'client_create',
+        'client_patch',
+        'deal_create',
+        'deal_patch',
+        'invoice_create',
+        'invoice_patch',
+        'invoice_delete',
+        'issue',
+        'revoke',
+        'cancel',
+        'rejected_issue',
+        'foreign_patch',
+    ],
+)
 async def test_dashboard_invalidation_http(action, bother_user, client, redis_session):
     headers, other_headers = bother_user
     me = await client.get('/auth/me', headers=headers)
     assert me.status_code == 200, me.text
-    key = f"dashboard:{me.json()['id']}"
+    key = f'dashboard:{me.json()["id"]}'
     other = await client.get('/auth/me', headers=other_headers)
     assert other.status_code == 200, other.text
-    other_key = f"dashboard:{other.json()['id']}"
+    other_key = f'dashboard:{other.json()["id"]}'
     customer_data = {
-        'client_name': 'Joe', 'organization': 'JoeCorp',
-        'email': 'joecorp@example.com', 'client_status': 'lead',
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
     customer = await client.post('/clients', json=customer_data, headers=headers)
     assert customer.status_code == 201, customer.text
@@ -26,8 +40,10 @@ async def test_dashboard_invalidation_http(action, bother_user, client, redis_se
     assert deal.status_code == 201, deal.text
     deal_id = deal.json()['id']
     invoice_data = {
-        'label': 'Cache invoice', 'amount': '40.00',
-        'due_date': '2000-01-01', 'deal_id': deal_id,
+        'label': 'Cache invoice',
+        'amount': '40.00',
+        'due_date': '2000-01-01',
+        'deal_id': deal_id,
     }
     invoice = await client.post('/invoices', json=invoice_data, headers=headers)
     assert invoice.status_code == 201, invoice.text
@@ -43,24 +59,40 @@ async def test_dashboard_invalidation_http(action, bother_user, client, redis_se
     await redis_session.set(other_key, 'other cached summary')
 
     if action == 'client_create':
-        response = await client.post('/clients', json={**customer_data, 'client_name': 'New'}, headers=headers)
+        response = await client.post(
+            '/clients', json={**customer_data, 'client_name': 'New'}, headers=headers
+        )
     elif action == 'client_patch':
-        response = await client.patch(f'/clients/{client_id}', json={'client_name': 'Renamed'}, headers=headers)
+        response = await client.patch(
+            f'/clients/{client_id}', json={'client_name': 'Renamed'}, headers=headers
+        )
     elif action == 'deal_create':
-        response = await client.post('/deals', json={**deal_data, 'name': 'New deal'}, headers=headers)
+        response = await client.post(
+            '/deals', json={**deal_data, 'name': 'New deal'}, headers=headers
+        )
     elif action == 'deal_patch':
-        response = await client.patch(f'/deals/{deal_id}', json={'amount': '120.00'}, headers=headers)
+        response = await client.patch(
+            f'/deals/{deal_id}', json={'amount': '120.00'}, headers=headers
+        )
     elif action == 'invoice_create':
-        response = await client.post('/invoices', json={**invoice_data, 'label': 'New invoice'}, headers=headers)
+        response = await client.post(
+            '/invoices', json={**invoice_data, 'label': 'New invoice'}, headers=headers
+        )
     elif action == 'invoice_patch':
-        response = await client.patch(f'/invoices/{invoice_id}', json={'amount': '45.00'}, headers=headers)
+        response = await client.patch(
+            f'/invoices/{invoice_id}', json={'amount': '45.00'}, headers=headers
+        )
     elif action == 'invoice_delete':
         response = await client.delete(f'/invoices/{invoice_id}', headers=headers)
     elif action == 'foreign_patch':
-        response = await client.patch(f'/deals/{deal_id}', json={'amount': '120.00'}, headers=other_headers)
+        response = await client.patch(
+            f'/deals/{deal_id}', json={'amount': '120.00'}, headers=other_headers
+        )
     else:
         transition = 'issue' if action == 'rejected_issue' else action
-        response = await client.post(f'/invoices/{invoice_id}/{transition}', headers=headers)
+        response = await client.post(
+            f'/invoices/{invoice_id}/{transition}', headers=headers
+        )
 
     expected_code = 200
     if action.endswith('_create'):

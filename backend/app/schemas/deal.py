@@ -15,6 +15,7 @@ DealName = Annotated[
     ),
 ]
 
+
 class DealValidation:
     pass
 
@@ -30,6 +31,7 @@ class DealFields(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
     client_id: str
 
+
 class DealBase(DealValidation, DealFields):
     pass
 
@@ -43,14 +45,12 @@ class DealUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', from_attributes=True)
 
     name: DealName | None = None
-    amount: Decimal | None = Field(
-        default=None, max_digits=12, decimal_places=2, ge=0
-    )
+    amount: Decimal | None = Field(default=None, max_digits=12, decimal_places=2, ge=0)
     status: DealStatus | None = None
     deadline: date | None = None
     notes: str | None = Field(default=None, max_length=5000)
 
-    @field_validator("amount", "name", "status", mode="before")
+    @field_validator('amount', 'name', 'status', mode='before')
     @classmethod
     def reject_null(cls, value):
         if value is None:
@@ -70,11 +70,13 @@ class DealRead(DealFields):
     created_at: datetime
     updated_at: datetime | None
 
+
 class DealListRead(DealRead):
     model_config = ConfigDict(from_attributes=True)
 
     paid_amount: Decimal
     remaining_to_pay: Decimal
+
 
 class DealDetailRead(DealRead):
     model_config = ConfigDict(from_attributes=True)

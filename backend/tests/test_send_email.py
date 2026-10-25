@@ -1,54 +1,78 @@
-from unittest.mock import AsyncMock
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 from urllib.parse import urlsplit
 
 import pytest
-from aiosmtplib.errors import SMTPException, SMTPTimeoutError, SMTPConnectTimeoutError, SMTPReadTimeoutError
+from aiosmtplib.errors import (
+    SMTPConnectTimeoutError,
+    SMTPException,
+    SMTPReadTimeoutError,
+    SMTPTimeoutError,
+)
 from sqlalchemy import select
 
-from backend.app.models.database_models import Invoice, Token
-from backend.app.core.config import settings
+from ..app.core.config import settings
+from ..app.models.database_models import Invoice, Token
 
 
-@pytest.mark.parametrize('scenario, expected_status', [
-    ('success', 200),
-    ('wrong_token', 409),
-    ('wrong_client', 404),
-    ('foreign_invoice', 404),
-    ('missing_email', 404),
-    ('anonymous', 401),
-    ('smtp_failure', 502),
-    ('timeout', 502),
-    ('connect_timeout', 502),
-    ('read_timeout', 502),
-])
+@pytest.mark.parametrize(
+    'scenario, expected_status',
+    [
+        ('success', 200),
+        ('wrong_token', 409),
+        ('wrong_client', 404),
+        ('foreign_invoice', 404),
+        ('missing_email', 404),
+        ('anonymous', 401),
+        ('smtp_failure', 502),
+        ('timeout', 502),
+        ('connect_timeout', 502),
+        ('read_timeout', 502),
+    ],
+)
 async def test_send_email(
-        scenario, expected_status, client, monkeypatch, active_user,
-        other_active_user, session_pool):
+    scenario,
+    expected_status,
+    client,
+    monkeypatch,
+    active_user,
+    other_active_user,
+    session_pool,
+):
     smtp_send = AsyncMock()
 
     monkeypatch.setattr(
-        "backend.app.api.routes.invoices.aiosmtplib.send",
+        'backend.app.api.routes.invoices.aiosmtplib.send',
         smtp_send,
     )
 
     headers = active_user[0]
-    response = await client.post('/clients', headers=headers, json={
-        'client_name': 'Recipient client',
-        'email': None if scenario == 'missing_email' else 'recipient@example.com',
-    })
+    response = await client.post(
+        '/clients',
+        headers=headers,
+        json={
+            'client_name': 'Recipient client',
+            'email': None if scenario == 'missing_email' else 'recipient@example.com',
+        },
+    )
     assert response.status_code == 201, response.text
     customer = response.json()['id']
     deal_data = {
-        'name': 'Website', 'amount': '1234.56', 'client_id': customer,
-        'deadline': '2030-06-15', 'notes': 'All requested fields',
+        'name': 'Website',
+        'amount': '1234.56',
+        'client_id': customer,
+        'deadline': '2030-06-15',
+        'notes': 'All requested fields',
     }
     response = await client.post('/deals', headers=headers, json=deal_data)
     assert response.status_code == 201, response.text
     deal = response.json()['id']
     invoice_data = {
-        'label': 'First milestone', 'amount': '123.45',
-        'due_date': (datetime.now(timezone.utc).date() + timedelta(days=30)).isoformat(),
+        'label': 'First milestone',
+        'amount': '123.45',
+        'due_date': (
+            datetime.now(timezone.utc).date() + timedelta(days=30)
+        ).isoformat(),
         'deal_id': deal,
     }
     response = await client.post('/invoices', headers=headers, json=invoice_data)
@@ -70,8 +94,14 @@ async def test_send_email(
     async with session_pool() as session:
         invoice = await session.get(Invoice, invoice_id)
         before = (invoice.status, invoice.issue_version, invoice.paid_at)
-        saved_token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
-        token_before = (saved_token.id, saved_token.token_value, saved_token.issue_version)
+        saved_token = await session.scalar(
+            select(Token).where(Token.invoice_id == invoice_id)
+        )
+        token_before = (
+            saved_token.id,
+            saved_token.token_value,
+            saved_token.issue_version,
+        )
 
     send_headers = headers
     recipient_id = customer
@@ -83,9 +113,14 @@ async def test_send_email(
             send_headers = other_active_user
         # Свой клиент отправителя: отказ должен произойти именно при проверке
         # принадлежности счёта или его связи с клиентом, а не на первом SELECT.
-        response = await client.post('/clients', headers=send_headers, json={
-            'client_name': 'Different recipient', 'email': 'different@example.com',
-        })
+        response = await client.post(
+            '/clients',
+            headers=send_headers,
+            json={
+                'client_name': 'Different recipient',
+                'email': 'different@example.com',
+            },
+        )
         assert response.status_code == 201, response.text
         recipient_id = response.json()['id']
     if scenario == 'anonymous':
@@ -124,12 +159,23 @@ async def test_send_email(
         assert message['Subject']
         assert message.get_content_type() == 'text/plain'
         body = message.get_content()
-        for expected in (number, 'First milestone', '123.45 USD',
-                         invoice_data['due_date'], payment_url,
-                         'Реальные деньги не списываются'):
+        for expected in (
+            number,
+            'First milestone',
+            '123.45 USD',
+            invoice_data['due_date'],
+            payment_url,
+            'Реальные деньги не списываются',
+        ):
             assert expected in body
-        for placeholder in ('{number}', '{label}', '{amount}', '{currency}',
-                            '{due_date}', '{payment_url}'):
+        for placeholder in (
+            '{number}',
+            '{label}',
+            '{amount}',
+            '{currency}',
+            '{due_date}',
+            '{payment_url}',
+        ):
             assert placeholder not in body
     elif scenario in smtp_errors:
         smtp_send.assert_awaited_once()
@@ -137,19 +183,29 @@ async def test_send_email(
         if scenario == 'smtp_failure':
             assert detail == 'Ошибка при передаче письма почтовому серверу'
         else:
-            assert detail == 'Не удалось подтвердить отправку письма. Проверьте почту перед повторной отправкой'
+            assert (
+                detail == 'Не удалось подтвердить отправку письма.'
+                ' Проверьте почту перед повторной отправкой'
+            )
         for secret in ('private-smtp-detail', 'fake-password', token):
             assert secret not in response.text
         # Проверяем состояние уже после сбоя, до ручного повтора.
         async with session_pool() as session:
             invoice = await session.get(Invoice, invoice_id)
             assert (invoice.status, invoice.issue_version, invoice.paid_at) == before
-            saved_token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
-            assert (saved_token.id, saved_token.token_value, saved_token.issue_version) == token_before
+            saved_token = await session.scalar(
+                select(Token).where(Token.invoice_id == invoice_id)
+            )
+            assert (
+                saved_token.id,
+                saved_token.token_value,
+                saved_token.issue_version,
+            ) == token_before
         first_message = smtp_send.call_args.args[0]
         repeated = await client.post(
             f'/invoices/{invoice_id}/{token}/send',
-            headers=headers, params={'client_id': customer},
+            headers=headers,
+            params={'client_id': customer},
         )
         assert repeated.status_code == 200, repeated.text
         assert 'Письмо принято почтовым сервером' in repeated.json()['credits']
@@ -165,12 +221,22 @@ async def test_send_email(
     async with session_pool() as session:
         invoice = await session.get(Invoice, invoice_id)
         assert (invoice.status, invoice.issue_version, invoice.paid_at) == before
-        saved_token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
-        assert (saved_token.id, saved_token.token_value, saved_token.issue_version) == token_before
+        saved_token = await session.scalar(
+            select(Token).where(Token.invoice_id == invoice_id)
+        )
+        assert (
+            saved_token.id,
+            saved_token.token_value,
+            saved_token.issue_version,
+        ) == token_before
 
     if scenario == 'success':
         # Сквозной HTTP-путь по ссылке именно из подготовленного письма.
-        emailed_url = next(line for line in body.splitlines() if line.startswith(('http://', 'https://')))
+        emailed_url = next(
+            line
+            for line in body.splitlines()
+            if line.startswith(('http://', 'https://'))
+        )
         page_path = urlsplit(emailed_url).path
         assert page_path == f'/pay/{invoice_id}/{token}'
         page = await client.get(page_path)
@@ -193,4 +259,3 @@ async def test_send_email(
         assert refreshed.json() == paid.json()
         assert refreshed.json()['can_pay'] is False
         smtp_send.assert_awaited_once()
-

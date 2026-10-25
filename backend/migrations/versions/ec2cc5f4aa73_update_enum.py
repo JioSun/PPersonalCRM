@@ -5,6 +5,7 @@ Revises: df23b8c92a36
 Create Date: 2026-10-03 19:58:53.890174
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -34,14 +35,22 @@ def replace_status_enum(old_values, new_values) -> None:
     old_enum = postgresql.ENUM(*old_values, name='invoice_status')
     new_enum = postgresql.ENUM(*new_values, name='invoice_status')
     op.alter_column(
-        'invoices', 'status', existing_type=old_enum, type_=sa.String(255),
-        postgresql_using='status::text', existing_nullable=False,
+        'invoices',
+        'status',
+        existing_type=old_enum,
+        type_=sa.String(255),
+        postgresql_using='status::text',
+        existing_nullable=False,
     )
     old_enum.drop(op.get_bind(), checkfirst=False)
     new_enum.create(op.get_bind(), checkfirst=False)
     op.alter_column(
-        'invoices', 'status', existing_type=sa.String(255), type_=new_enum,
-        postgresql_using='status::invoice_status', existing_nullable=False,
+        'invoices',
+        'status',
+        existing_type=sa.String(255),
+        type_=new_enum,
+        postgresql_using='status::invoice_status',
+        existing_nullable=False,
     )
 
 
@@ -53,4 +62,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     replace_status_enum(NEW_STATUSES, OLD_STATUSES)
-

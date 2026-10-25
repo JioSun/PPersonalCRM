@@ -6,12 +6,17 @@ services:
     build: .
     env_file:
       - .env
-    command: uv run fastapi run backend/app/main.py --host 0.0.0.0 --port 8000
+    command: uv run --no-sync fastapi run backend/app/main.py --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+
     logging:
       driver: json-file
       options:
@@ -27,15 +32,37 @@ services:
       POSTGRES_DB: personalcrm
       LC_MESSAGES: en_US.UTF-8
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_persistence_check:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+
+  migration:
+    build: .
+    env_file:
+      - .env
+    environment:
+      POSTGRES_SERVER: postgres
+    command: uv run --no-cache --no-sync alembic upgrade head
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  postgres_persistence_check:

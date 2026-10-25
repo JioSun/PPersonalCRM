@@ -10,13 +10,13 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.models.constants import ClientStatus
-from backend.app.models.database_models.base import Base, IdMixin, TimestampMixin
+from ..constants import ClientStatus
+from .base import Base, IdMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from backend.app.models.database_models.deal import Deal
-    from backend.app.models.database_models.invoice import Invoice
-    from backend.app.models.database_models.user import User
+    from .deal import Deal
+    from .invoice import Invoice
+    from .user import User
 
 
 class Client(Base, IdMixin, TimestampMixin):

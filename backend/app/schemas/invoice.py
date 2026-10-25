@@ -22,10 +22,9 @@ InvoiceLabel = Annotated[
     ),
 ]
 
+
 class InvoiceFields(BaseModel):
-    amount: Decimal = Field(
-        max_digits=12, decimal_places=2, gt=0
-    )
+    amount: Decimal = Field(max_digits=12, decimal_places=2, gt=0)
     due_date: date
 
 
@@ -39,20 +38,20 @@ class InvoiceCreate(InvoiceBase):
     label: InvoiceLabel
     deal_id: str
 
+
 class InvoiceUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     amount: Decimal | None = Field(default=None, max_digits=12, decimal_places=2, gt=0)
     due_date: date | None = None
-    label: InvoiceLabel  | None = None
+    label: InvoiceLabel | None = None
 
-    @field_validator("amount", "due_date", "label",  mode="before")
+    @field_validator('amount', 'due_date', 'label', mode='before')
     @classmethod
     def reject_null(cls, value):
         if value is None:
             raise ValueError('Передавать Null в тело запроса для обновления нельзя')
         return value
-
 
 
 class InvoiceRead(InvoiceFields):
@@ -69,13 +68,14 @@ class InvoiceRead(InvoiceFields):
     created_at: datetime
     updated_at: datetime
 
-    @computed_field
+    @computed_field # type: ignore[prop-decorator]
     @property
     def is_overdue(self) -> bool:
         now = datetime.now(timezone.utc).date()
         due_date = self.due_date
 
         return self.status == InvoiceStatus.ISSUED and now > due_date
+
 
 class InvoiceSecretRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -90,6 +90,7 @@ class InvoiceSecretRead(BaseModel):
     is_overdue: bool
     can_pay: bool
 
+
 class DocumentSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -101,7 +102,3 @@ class DocumentSummary(BaseModel):
     deal_name: str
     deal_amount: Decimal
     deadline: datetime
-
-
-
-

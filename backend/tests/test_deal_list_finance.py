@@ -3,8 +3,8 @@ from decimal import Decimal
 
 import pytest
 
-from backend.app.models.constants import InvoiceStatus
-from backend.app.models.database_models import Client, Deal, Invoice
+from ..app.models.constants import InvoiceStatus
+from ..app.models.database_models import Client, Deal, Invoice
 
 
 @pytest.mark.parametrize('scenario', ['empty', 'mixed'])
@@ -23,8 +23,10 @@ async def test_deal_list_finance(scenario, bother_user, client, session_pool):
                 await session.flush()
                 for index, total in enumerate(['100.00', '200.00', '300.00']):
                     deal = Deal(
-                        name=f'Finance {index}', amount=Decimal(total),
-                        user_id=me.json()['id'], client_id=customer.id,
+                        name=f'Finance {index}',
+                        amount=Decimal(total),
+                        user_id=me.json()['id'],
+                        client_id=customer.id,
                     )
                     session.add(deal)
                     await session.flush()
@@ -32,8 +34,10 @@ async def test_deal_list_finance(scenario, bother_user, client, session_pool):
                     paid = '0.00'
                     if index == 1:
                         rows = [
-                            (InvoiceStatus.PAID, '20.10'), (InvoiceStatus.PAID, '5.05'),
-                            (InvoiceStatus.ISSUED, '40.00'), (InvoiceStatus.DRAFT, '500.00'),
+                            (InvoiceStatus.PAID, '20.10'),
+                            (InvoiceStatus.PAID, '5.05'),
+                            (InvoiceStatus.ISSUED, '40.00'),
+                            (InvoiceStatus.DRAFT, '500.00'),
                             (InvoiceStatus.CANCELLED, '500.00'),
                         ]
                         paid = '25.15'
@@ -41,14 +45,24 @@ async def test_deal_list_finance(scenario, bother_user, client, session_pool):
                         rows = [(InvoiceStatus.PAID, '300.00')]
                         paid = '300.00'
                     for number, (status, amount) in enumerate(rows):
-                        session.add(Invoice(
-                            label=f'List {index}-{number}', number=f'LIST-{index}-{number}',
-                            user_id=me.json()['id'], client_id=customer.id, deal_id=deal.id,
-                            amount=Decimal(amount), status=status, due_date=date(2000, 1, 1),
-                            is_paid=status == InvoiceStatus.PAID,
-                            paid_at=(datetime(2000, 1, 1, tzinfo=timezone.utc)
-                                     if status == InvoiceStatus.PAID else None),
-                        ))
+                        session.add(
+                            Invoice(
+                                label=f'List {index}-{number}',
+                                number=f'LIST-{index}-{number}',
+                                user_id=me.json()['id'],
+                                client_id=customer.id,
+                                deal_id=deal.id,
+                                amount=Decimal(amount),
+                                status=status,
+                                due_date=date(2000, 1, 1),
+                                is_paid=status == InvoiceStatus.PAID,
+                                paid_at=(
+                                    datetime(2000, 1, 1, tzinfo=timezone.utc)
+                                    if status == InvoiceStatus.PAID
+                                    else None
+                                ),
+                            )
+                        )
                     if owner_headers == headers:
                         expected[deal.id] = (total, paid, deal.name)
 
@@ -67,8 +81,12 @@ async def test_deal_list_finance(scenario, bother_user, client, session_pool):
         assert Decimal(item['paid_amount']) == Decimal(paid)
         assert Decimal(item['remaining_to_pay']) == Decimal(total) - Decimal(paid)
 
-    first = await client.get('/deals', params={'limit': 1, 'offset': 0}, headers=headers)
-    second = await client.get('/deals', params={'limit': 2, 'offset': 1}, headers=headers)
+    first = await client.get(
+        '/deals', params={'limit': 1, 'offset': 0}, headers=headers
+    )
+    second = await client.get(
+        '/deals', params={'limit': 2, 'offset': 1}, headers=headers
+    )
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
     assert first.json() == body[:1]

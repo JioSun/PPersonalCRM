@@ -1,11 +1,9 @@
-import asyncio
-
 from google import genai
 from google.genai import errors
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
-from backend.app.core.config import settings
-from backend.app.working_llm.llm_classes import ExtractedDealInfo
+from ..core.config import settings
+from .llm_classes import ExtractedDealInfo
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -76,7 +74,7 @@ def is_rate_limit_error(exception):
     retry=retry_if_exception(is_rate_limit_error),
     wait=wait_exponential(multiplier=1, min=1, max=10),
     stop=stop_after_attempt(3),
-    reraise=True
+    reraise=True,
 )
 async def note_formatter(note_text: str, deal_names: str) -> ExtractedDealInfo | None:
     final_prompt = SYSTEM_PROMPT.format(note_text=note_text, deal_names=deal_names)

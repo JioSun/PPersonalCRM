@@ -2,10 +2,10 @@ import logging
 
 from fastapi import FastAPI
 
-from backend.app.api.routes import clients, dashboards, deals, invoices, users, pay
-from backend.app.core.redis_py import get_redis
-from backend.app.logger import setup_logging
-from backend.app.middlewares.rate_limiting import rate_limit_middleware
+from .api.routes import clients, dashboards, deals, invoices, pay, users
+from .core.redis_py import get_redis
+from .logger import setup_logging
+from .middlewares.rate_limiting import rate_limit_middleware
 
 setup_logging()
 

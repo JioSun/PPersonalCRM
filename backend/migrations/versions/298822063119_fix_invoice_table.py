@@ -5,6 +5,7 @@ Revises: dda7e75d8104
 Create Date: 2026-09-16 21:47:49.204470
 
 """
+
 from typing import Sequence, Union
 
 # revision identifiers, used by Alembic.

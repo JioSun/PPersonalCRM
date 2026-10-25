@@ -1,127 +1,175 @@
 async def test_register(client):
-    response = await client.post('/auth/register', json={
-      "email": "gresges@xample.com",
-      "full_name": "asd",
-      "username": "asdasd",
-      "password": "JOOPPAds23123"
-    })
+    response = await client.post(
+        '/auth/register',
+        json={
+            'email': 'gresges@xample.com',
+            'full_name': 'asd',
+            'username': 'asdasd',
+            'password': 'JOOPPAds23123',
+        },
+    )
 
     assert response.status_code == 200
 
-    response = await client.post('/auth/register', json={
-        "email": "gresges@xample.com",
-        "full_name": "asd",
-        "username": "asdasd",
-        "password": "JOOPPAds23123"
-    })
+    response = await client.post(
+        '/auth/register',
+        json={
+            'email': 'gresges@xample.com',
+            'full_name': 'asd',
+            'username': 'asdasd',
+            'password': 'JOOPPAds23123',
+        },
+    )
     assert response.status_code == 400
 
+
 async def test_client_works(client, active_user):
-    client_json ={
-      "client_name": "Joe",
-      "organization": "JoeCorp",
-      "email": "joecorp@example.com",
-      "client_status": "lead",
+    client_json = {
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
     response = await client.post('/clients', json=client_json)
 
     assert response.status_code == 401
 
+
 async def test_client_refresh(client, active_user):
     client_json = {
-        "client_name": "Joe",
-        "organization": "JoeCorp",
-        "email": "joecorp@example.com",
-        "client_status": "lead",
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
 
     response = active_user[1]
 
     print(response.json())
-    headers = {"Authorization": f"Bearer {response.json()['refresh_token']}"}
+    headers = {'Authorization': f'Bearer {response.json()["refresh_token"]}'}
 
-    response = await client.post('/clients', json=client_json, headers={'Authorization': headers['Authorization']})
+    response = await client.post(
+        '/clients',
+        json=client_json,
+        headers={'Authorization': headers['Authorization']},
+    )
 
     assert response.status_code == 401
 
+
 async def test_users_reading(active_user, other_active_user, client):
     client_json_a = {
-        "client_name": "Joe",
-        "organization": "JoeCorp",
-        "email": "joecorp@example.com",
-        "client_status": "lead",
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
 
     client_json_b = {
-        "client_name": "JoeB",
-        "organization": "JoeCorpB",
-        "email": "joecorpB@example.com",
-        "client_status": "lead",
+        'client_name': 'JoeB',
+        'organization': 'JoeCorpB',
+        'email': 'joecorpB@example.com',
+        'client_status': 'lead',
     }
     active_user = active_user[0]
 
-    client_a = await client.post('/clients', json=client_json_a, headers={'Authorization': active_user['Authorization']})
+    client_a = await client.post(
+        '/clients',
+        json=client_json_a,
+        headers={'Authorization': active_user['Authorization']},
+    )
 
     assert client_a.status_code == 201
 
-    client_b = await client.post('/clients', json=client_json_b, headers={'Authorization': other_active_user['Authorization']})
+    client_b = await client.post(
+        '/clients',
+        json=client_json_b,
+        headers={'Authorization': other_active_user['Authorization']},
+    )
 
     assert client_b.status_code == 201
 
-    response_a = await client.get(f"/clients/{client_a.json()['id']}", headers={'Authorization': other_active_user['Authorization']})
+    response_a = await client.get(
+        f'/clients/{client_a.json()["id"]}',
+        headers={'Authorization': other_active_user['Authorization']},
+    )
 
     assert response_a.status_code == 404
 
-    response_b = await client.get(f"/clients/{client_b.json()['id']}", headers={'Authorization': active_user['Authorization']})
+    response_b = await client.get(
+        f'/clients/{client_b.json()["id"]}',
+        headers={'Authorization': active_user['Authorization']},
+    )
 
     assert response_b.status_code == 404
 
+
 async def test_own_client(active_user, client):
     client_json = {
-        "client_name": "Joe",
-        "organization": "JoeCorp",
-        "email": "joecorp@example.com",
-        "client_status": "lead",
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
     active_user = active_user[0]
-    response = await client.post('/clients', json=client_json, headers={'Authorization': active_user['Authorization']})
+    response = await client.post(
+        '/clients',
+        json=client_json,
+        headers={'Authorization': active_user['Authorization']},
+    )
     assert response.status_code == 201
 
     deal_json = {
-        "name": "deal",
-        "client_id": response.json()['id'],
+        'name': 'deal',
+        'client_id': response.json()['id'],
     }
 
-    deal = await client.post('/deals', json=deal_json, headers={'Authorization': active_user['Authorization']})
+    deal = await client.post(
+        '/deals',
+        json=deal_json,
+        headers={'Authorization': active_user['Authorization']},
+    )
     assert deal.status_code == 201
+
 
 async def test_forgotten_due_date(active_user, client):
     client_json = {
-        "client_name": "Joe",
-        "organization": "JoeCorp",
-        "email": "joecorp@example.com",
-        "client_status": "lead",
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
     active_user = active_user[0]
-    response = await client.post('/clients', json=client_json, headers={'Authorization': active_user['Authorization']})
+    response = await client.post(
+        '/clients',
+        json=client_json,
+        headers={'Authorization': active_user['Authorization']},
+    )
     assert response.status_code == 201
 
     deal_json = {
-        "name": "deal",
-        "client_id": response.json()['id'],
+        'name': 'deal',
+        'client_id': response.json()['id'],
     }
 
-    deal = await client.post('/deals', json=deal_json, headers={'Authorization': active_user['Authorization']})
+    deal = await client.post(
+        '/deals',
+        json=deal_json,
+        headers={'Authorization': active_user['Authorization']},
+    )
     assert deal.status_code == 201
 
-
     invoice = {
-        "label": "invoiceB",
-        "deal_id": deal.json()['id'],
-        "amount": "100.00",
+        'label': 'invoiceB',
+        'deal_id': deal.json()['id'],
+        'amount': '100.00',
     }
 
-    invoice = await client.post('/invoices', json=invoice, headers={'Authorization': active_user['Authorization']})
+    invoice = await client.post(
+        '/invoices',
+        json=invoice,
+        headers={'Authorization': active_user['Authorization']},
+    )
     assert invoice.status_code == 422, invoice.text
     assert any(
         error['loc'] == ['body', 'due_date'] and error['type'] == 'missing'
@@ -131,70 +179,89 @@ async def test_forgotten_due_date(active_user, client):
 
 async def test_two_email_reg(client):
     json = {
-        "email": "testuser@xample.com",
-        "full_name": "User Test",
-        "username": "UTest",
-        "password": "Kill2896"
+        'email': 'testuser@xample.com',
+        'full_name': 'User Test',
+        'username': 'UTest',
+        'password': 'Kill2896',
     }
-    response1 = await client.post("/auth/register", json=json)
+    response1 = await client.post('/auth/register', json=json)
 
     assert response1.status_code == 200
 
-    response2 = await client.post("/auth/register", json=json)
+    response2 = await client.post('/auth/register', json=json)
 
     assert response2.status_code == 400
 
+
 async def test_create_invoice_with_other_user(client, active_user, other_active_user):
     client_json_a = {
-        "client_name": "Joe",
-        "organization": "JoeCorp",
-        "email": "joecorp@example.com",
-        "client_status": "lead",
+        'client_name': 'Joe',
+        'organization': 'JoeCorp',
+        'email': 'joecorp@example.com',
+        'client_status': 'lead',
     }
 
     client_json_b = {
-        "client_name": "JoeB",
-        "organization": "JoeCorpB",
-        "email": "joecorpB@example.com",
-        "client_status": "lead",
+        'client_name': 'JoeB',
+        'organization': 'JoeCorpB',
+        'email': 'joecorpB@example.com',
+        'client_status': 'lead',
     }
 
     active_user = active_user[0]
 
-    client_a = await client.post('/clients', json=client_json_a,
-                                 headers={'Authorization': active_user['Authorization']})
+    client_a = await client.post(
+        '/clients',
+        json=client_json_a,
+        headers={'Authorization': active_user['Authorization']},
+    )
 
     assert client_a.status_code == 201
 
-    client_b = await client.post('/clients', json=client_json_b,
-                                 headers={'Authorization': other_active_user['Authorization']})
+    client_b = await client.post(
+        '/clients',
+        json=client_json_b,
+        headers={'Authorization': other_active_user['Authorization']},
+    )
 
     assert client_b.status_code == 201
 
     deal_json_a = {
-         "name": "dealA",
-         "client_id": client_b.json().get('id'),
-     }
-
-    deal_json_b = {
-         "name": "dealB",
-         "client_id": client_b.json().get('id'),
+        'name': 'dealA',
+        'client_id': client_b.json().get('id'),
     }
 
-    deal_a = await client.post('/deals', json=deal_json_a, headers={'Authorization': active_user['Authorization']})
+    deal_json_b = {
+        'name': 'dealB',
+        'client_id': client_b.json().get('id'),
+    }
+
+    deal_a = await client.post(
+        '/deals',
+        json=deal_json_a,
+        headers={'Authorization': active_user['Authorization']},
+    )
 
     assert deal_a.status_code == 404
 
-    deal_b = await client.post('/deals', json=deal_json_b, headers={'Authorization': other_active_user['Authorization']})
+    deal_b = await client.post(
+        '/deals',
+        json=deal_json_b,
+        headers={'Authorization': other_active_user['Authorization']},
+    )
 
     assert deal_b.status_code == 201
 
     invoice_b = {
-        "label": "invoiceB",
-        "deal_id": deal_b.json()['id'],
-        "amount": "100.00",
-        "due_date": "2021-04-01",
+        'label': 'invoiceB',
+        'deal_id': deal_b.json()['id'],
+        'amount': '100.00',
+        'due_date': '2021-04-01',
     }
 
-    invoice_a = await client.post('/invoices', json=invoice_b, headers={'Authorization': active_user['Authorization']})
+    invoice_a = await client.post(
+        '/invoices',
+        json=invoice_b,
+        headers={'Authorization': active_user['Authorization']},
+    )
     assert invoice_a.status_code == 404

@@ -3,13 +3,16 @@ from decimal import Decimal
 
 import pytest
 
-from backend.app.models.constants import ClientStatus, DealStatus
-from backend.app.models.database_models import Client, Deal
+from ..app.models.constants import ClientStatus, DealStatus
+from ..app.models.database_models import Client, Deal
 
 
-@pytest.mark.parametrize('scenario', ['empty', 'clients_only', 'sparse', 'all_statuses'])
+@pytest.mark.parametrize(
+    'scenario', ['empty', 'clients_only', 'sparse', 'all_statuses']
+)
 async def test_dashboard_counts_http(
-        scenario, bother_user, client, session_pool, redis_session):
+    scenario, bother_user, client, session_pool, redis_session
+):
     headers, other_headers = bother_user
     me = await client.get('/auth/me', headers=headers)
     assert me.status_code == 200, me.text
@@ -25,8 +28,11 @@ async def test_dashboard_counts_http(
         expected_deals['completed'] = 1
     elif scenario == 'all_statuses':
         expected_deals = {
-            'new': 1, 'in_progress': 2, 'on_review': 3,
-            'completed': 4, 'cancelled': 5,
+            'new': 1,
+            'in_progress': 2,
+            'on_review': 3,
+            'completed': 4,
+            'cancelled': 5,
         }
 
     async with session_pool() as session:
@@ -36,7 +42,8 @@ async def test_dashboard_counts_http(
                 if scenario == 'empty':
                     break
                 customer = Client(
-                    client_name=f'Own client {index}', user_id=user_id,
+                    client_name=f'Own client {index}',
+                    user_id=user_id,
                     client_status=status,
                 )
                 session.add(customer)
@@ -48,17 +55,26 @@ async def test_dashboard_counts_http(
             # У первого клиента несколько сделок, остальные остаются без сделок.
             for status, count in expected_deals.items():
                 for index in range(count):
-                    session.add(Deal(
-                        name=f'{status} {index}', amount=Decimal('100.00'),
-                        user_id=user_id, client_id=own_clients[0].id,
-                        status=DealStatus(status),
-                    ))
+                    session.add(
+                        Deal(
+                            name=f'{status} {index}',
+                            amount=Decimal('100.00'),
+                            user_id=user_id,
+                            client_id=own_clients[0].id,
+                            status=DealStatus(status),
+                        )
+                    )
             # Чужие записи есть даже в сценарии пустой сводки владельца.
             for status in DealStatus:
-                session.add(Deal(
-                    name=f'Other {status.value}', amount=Decimal('900.00'),
-                    user_id=other_id, client_id=other_client.id, status=status,
-                ))
+                session.add(
+                    Deal(
+                        name=f'Other {status.value}',
+                        amount=Decimal('900.00'),
+                        user_id=other_id,
+                        client_id=other_client.id,
+                        status=status,
+                    )
+                )
 
     await redis_session.delete(f'dashboard:{user_id}')
     response = await client.get('/dashboard', headers=headers)
@@ -69,8 +85,12 @@ async def test_dashboard_counts_http(
     assert body['deals_by_status'] == expected_deals
     assert all(type(count) is int for count in body['deals_by_status'].values())
     assert {
-        'clients_summary', 'overdue_invoice', 'paid_amount',
-        'unpaid_amount', 'overdue_amount', 'overdue_count',
+        'clients_summary',
+        'overdue_invoice',
+        'paid_amount',
+        'unpaid_amount',
+        'overdue_amount',
+        'overdue_count',
     } <= body.keys()
 
     cached_json = await redis_session.get(f'dashboard:{user_id}')
@@ -85,5 +105,7 @@ async def test_dashboard_counts_http(
     other_response = await client.get('/dashboard', headers=other_headers)
     assert other_response.status_code == 200, other_response.text
     assert other_response.json()['clients_count'] == 1
-    assert other_response.json()['deals_by_status'] == {status.value: 1 for status in DealStatus}
+    assert other_response.json()['deals_by_status'] == {
+        status.value: 1 for status in DealStatus
+    }
     assert await redis_session.get(f'dashboard:{user_id}') == cached_json

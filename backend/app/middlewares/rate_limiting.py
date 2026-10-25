@@ -24,18 +24,22 @@ async def rate_limit_middleware(
     redis_connection = request.app.state.redis_provider
 
     async with aclosing(redis_connection()) as connections:
-            async for conn in connections:
-                    if request.url.path in ('/auth/login', '/auth/register', ):
-                        exceeded = await check_rate_limit(
-                            conn, f'ratelimit:auth:{client_ip}', limit=5
-                        )
-                    else:
-                        exceeded = await check_rate_limit(conn, f'ratelimit:global:{client_ip}', limit=60)
-                    if exceeded:
-                        return JSONResponse(
-                            status_code=429, content={'detail': 'Too Many Requests'}
-                        )
-
+        async for conn in connections:
+            if request.url.path in (
+                '/auth/login',
+                '/auth/register',
+            ):
+                exceeded = await check_rate_limit(
+                    conn, f'ratelimit:auth:{client_ip}', limit=5
+                )
+            else:
+                exceeded = await check_rate_limit(
+                    conn, f'ratelimit:global:{client_ip}', limit=60
+                )
+            if exceeded:
+                return JSONResponse(
+                    status_code=429, content={'detail': 'Too Many Requests'}
+                )
 
     response = await call_next(request)
 

@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.models.constants import DealStatus
-from backend.app.models.database_models.base import Base, IdMixin, TimestampMixin
+from ..constants import DealStatus
+from .base import Base, IdMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ....app.models.database_models.client import Client
@@ -14,15 +14,20 @@ if TYPE_CHECKING:
     from ....app.models.database_models.user import User
 
 
-
 class Deal(Base, IdMixin, TimestampMixin):
     __tablename__ = 'deals'
 
     version: Mapped[int] = mapped_column(server_default=text('1'))
 
-    name: Mapped[str] = mapped_column(String(50), index=True, nullable=False,)
-    amount: Mapped[Decimal] = mapped_column(nullable=False,)
-    currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
+    name: Mapped[str] = mapped_column(
+        String(50),
+        index=True,
+        nullable=False,
+    )
+    amount: Mapped[Decimal] = mapped_column(
+        nullable=False,
+    )
+    currency: Mapped[str] = mapped_column(default='USD', server_default='USD')
     status: Mapped[DealStatus] = mapped_column(default=DealStatus.NEW)
     deadline: Mapped[date | None] = mapped_column(index=True)
     closed_at: Mapped[datetime | None] = mapped_column()
@@ -44,15 +49,14 @@ class Deal(Base, IdMixin, TimestampMixin):
         lazy='raise',
     )
 
-
     __table_args__ = (
         CheckConstraint('amount >= 0', name='ck_deals_amount_positive'),
         Index('idx_client_id__and__status', 'client_id', 'status'),
-        CheckConstraint(currency == "USD", name='ck_deals_currency'),
+        CheckConstraint(currency == 'USD', name='ck_deals_currency'),
         CheckConstraint(
             func.length(func.trim(name)) > 0,
-            name="ck_deals_name_not_blank",
-        )
+            name='ck_deals_name_not_blank',
+        ),
     )
 
     __mapper_args__ = {'version_id_col': version}

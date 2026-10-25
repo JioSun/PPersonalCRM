@@ -5,8 +5,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import select
 
-from backend.app.models.constants import InvoiceStatus
-from backend.app.models.database_models import Client, Deal, Invoice, User
+from ..app.models.constants import InvoiceStatus
+from ..app.models.database_models import Client, Deal, Invoice, User
 
 
 @pytest_asyncio.fixture

@@ -5,45 +5,80 @@ import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy import select
 
-from backend.app.core.redis_py import get_redis
-from backend.app.models.constants import InvoiceStatus
-from backend.app.models.database_models import Invoice, Token
+from ..app.core.redis_py import get_redis
+from ..app.models.constants import InvoiceStatus
+from ..app.models.database_models import Invoice, Token
 
 
-@pytest.mark.parametrize('scenario', [
-    'success', 'repeat', 'rejected', 'missing', 'wrong_token',
-    'redis_failure', 'repeat_redis_failure', 'absent_cache',
-    'service_rejected', 'service_missing',
-])
+@pytest.mark.parametrize(
+    'scenario',
+    [
+        'success',
+        'repeat',
+        'rejected',
+        'missing',
+        'wrong_token',
+        'redis_failure',
+        'repeat_redis_failure',
+        'absent_cache',
+        'service_rejected',
+        'service_missing',
+    ],
+)
 async def test_payment_invalidates_dashboard(
-        scenario, bother_user, client, session_pool, redis_session, monkeypatch, caplog):
+    scenario, bother_user, client, session_pool, redis_session, monkeypatch, caplog
+):
     headers, other_headers = bother_user
     me = await client.get('/auth/me', headers=headers)
     assert me.status_code == 200, me.text
     user_id = me.json()['id']
     other = await client.get('/auth/me', headers=other_headers)
     assert other.status_code == 200, other.text
-    other_key = f"dashboard:{other.json()['id']}"
-    response = await client.post('/clients', json={
-        'client_name': 'Joe', 'organization': 'JoeCorp',
-        'email': 'joecorp@example.com', 'client_status': 'lead',
-    }, headers=headers)
+    other_key = f'dashboard:{other.json()["id"]}'
+    response = await client.post(
+        '/clients',
+        json={
+            'client_name': 'Joe',
+            'organization': 'JoeCorp',
+            'email': 'joecorp@example.com',
+            'client_status': 'lead',
+        },
+        headers=headers,
+    )
     assert response.status_code == 201, response.text
-    deal = await client.post('/deals', json={
-        'name': 'Payment cache', 'amount': '100.00', 'client_id': response.json()['id'],
-    }, headers=headers)
+    deal = await client.post(
+        '/deals',
+        json={
+            'name': 'Payment cache',
+            'amount': '100.00',
+            'client_id': response.json()['id'],
+        },
+        headers=headers,
+    )
     assert deal.status_code == 201, deal.text
-    response = await client.post('/invoices', json={
-        'label': 'Pay me', 'amount': '40.00', 'deal_id': deal.json()['id'],
-        'due_date': str(datetime.now(timezone.utc).date() + timedelta(days=1)),
-    }, headers=headers)
+    response = await client.post(
+        '/invoices',
+        json={
+            'label': 'Pay me',
+            'amount': '40.00',
+            'deal_id': deal.json()['id'],
+            'due_date': str(datetime.now(timezone.utc).date() + timedelta(days=1)),
+        },
+        headers=headers,
+    )
     assert response.status_code == 201, response.text
     invoice_id = response.json()['id']
     issued = await client.post(f'/invoices/{invoice_id}/issue', headers=headers)
     assert issued.status_code == 200, issued.text
     is_repeat = scenario in ('repeat', 'repeat_redis_failure')
     redis_failure = scenario in ('redis_failure', 'repeat_redis_failure')
-    refused = scenario in ('rejected', 'missing', 'wrong_token', 'service_rejected', 'service_missing')
+    refused = scenario in (
+        'rejected',
+        'missing',
+        'wrong_token',
+        'service_rejected',
+        'service_missing',
+    )
     initial_paid_at = datetime(2026, 1, 1, tzinfo=timezone.utc) if is_repeat else None
     async with session_pool() as session:
         async with session.begin():
@@ -53,7 +88,9 @@ async def test_payment_invalidates_dashboard(
             invoice.paid_at = initial_paid_at
             if is_repeat or scenario == 'rejected':
                 invoice.due_date = datetime.now(timezone.utc).date() - timedelta(days=1)
-            token = await session.scalar(select(Token).where(Token.invoice_id == invoice_id))
+            token = await session.scalar(
+                select(Token).where(Token.invoice_id == invoice_id)
+            )
             secret = token.token_value
 
     key = f'dashboard:{user_id}'
@@ -76,15 +113,18 @@ async def test_payment_invalidates_dashboard(
 
     monkeypatch.setattr(redis_session, 'delete', checked_delete)
     if scenario in ('service_rejected', 'service_missing'):
+
         async def unavailable_payment(**kwargs):
             if scenario == 'service_rejected':
                 raise ValueError('Payment rejected after initial link checks')
             return None
 
-        monkeypatch.setattr('backend.app.api.routes.invoices.pay_invoice_in_db', unavailable_payment)
+        monkeypatch.setattr(
+            'backend.app.api.routes.invoices.pay_invoice_in_db', unavailable_payment
+        )
     # Подмена только Redis-зависимости маршрута; middleware продолжает работать
     # со своим тестовым клиентом Redis. Бизнес-интерфейс остаётся HTTP.
-    from backend.app.main import app
+    from ..app.main import app
 
     async def payment_redis():
         yield redis_session
@@ -98,13 +138,17 @@ async def test_payment_invalidates_dashboard(
         response = await client.post(f'/invoices/{target_id}/{supplied}/pay')
     finally:
         app.dependency_overrides[get_redis] = previous_override
-    expected_code = 409 if scenario in ('rejected', 'service_rejected') else 404 if refused else 200
+    expected_code = (
+        409 if scenario in ('rejected', 'service_rejected') else 404 if refused else 200
+    )
     assert response.status_code == expected_code, response.text
     if not refused:
         assert response.json()['status'] == 'paid'
         assert response.json()['can_pay'] is False
     if redis_failure:
-        assert any(record.levelno >= 30 for record in caplog.records), 'Cache failure must be logged'
+        assert any(record.levelno >= 30 for record in caplog.records), (
+            'Cache failure must be logged'
+        )
 
     assert deleted_keys == ([] if refused else [key])
     assert await redis_session.get(other_key) == 'other summary'

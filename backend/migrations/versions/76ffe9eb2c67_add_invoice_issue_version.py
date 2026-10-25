@@ -5,6 +5,7 @@ Revises: ec2cc5f4aa73
 Create Date: 2026-10-07 21:02:23.654943
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -19,7 +20,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('invoices', sa.Column('issue_version', sa.BigInteger(), nullable=False, server_default="0"))
+    op.add_column(
+        'invoices',
+        sa.Column('issue_version', sa.BigInteger(), nullable=False, server_default='0'),
+    )
 
 
 def downgrade() -> None:

@@ -56,7 +56,7 @@ class Settings(BaseSettings):
             )
         )
 
-    @computed_field # type: ignore[prop-decorator]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def REDIS_DATABASE_URL(self) -> str:
         return str(
