@@ -1,3 +1,4 @@
+import logging
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -9,9 +10,20 @@ from sqlalchemy.ext.asyncio import (
 
 from .config import settings
 
+logging.getLogger("sqlalchemy.engine").setLevel(
+    logging.WARNING
+)
+
 
 def create_engine(db_url: str) -> AsyncEngine:
-    return create_async_engine(db_url, echo=True, pool_size=5, max_overflow=10)
+    return create_async_engine(
+        db_url,
+        echo=False,
+        echo_pool=False,
+        hide_parameters=True,
+        pool_size=5,
+        max_overflow=10
+    )
 
 
 def create_session_pool(engine):

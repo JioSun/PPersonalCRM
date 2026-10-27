@@ -135,9 +135,13 @@ async def test_payment_retry_after_committed_response_failure(
     monkeypatch.setattr(
         'backend.app.api.routes.invoices.pay_invoice_in_db', fail_after_commit
     )
-    # Имитируем сбой сервера после commit до ответа, не реальный сетевой разрыв.
-    with pytest.raises(ConnectionError, match='Simulated failure after payment commit'):
-        await client.post(f'/invoices/{invoice_id}/{secret}/pay')
+    # После commit middleware превращает сбой в безопасный HTTP 500.
+    # Это не реальный сетевой разрыв; ниже проверяется безопасный повтор оплаты.
+    failed_response = await client.post(f'/invoices/{invoice_id}/{secret}/pay')
+    assert failed_response.status_code == 500
+    assert failed_response.json() == {'detail': 'Internal Server Error'}
+    assert failed_response.headers['X-Request-ID']
+    assert 'Simulated failure after payment commit' not in failed_response.text
     async with session_pool() as session:
         saved = await session.get(Invoice, invoice_id)
         assert saved.status == InvoiceStatus.PAID

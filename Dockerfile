@@ -36,4 +36,4 @@ RUN mkdir -p /home/app/.cache/uv \
 
 USER app
 
-CMD ["uv", "run","--no-cache", "--no-sync", "fastapi", "run", "backend/app/main.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--no-cache", "--no-sync", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
